@@ -1,0 +1,548 @@
+// Marc B. Reynolds, 2025
+// Public Domain under http://unlicense.org, see link for details.
+
+#pragma once
+
+#include <stdint.h>
+#include <math.h>
+#include <string.h>
+
+/*
+  ──────────────────────────────────────────────────────────────
+  Overview (vprng)
+
+  A small SIMD PRNG core method that fits into AVX2 operations.
+  Implementation uses the GCC extension vector_size to be able
+  to hit multiple architectures w/o direct intrinsics or a lib.
+  This extension is supported by clang. For visual c a port
+  to intrinsics would be required.
+
+  The "goal" is to be fast and not to complete with the current
+  "state-of-the art". That being said it consistently passes
+  PractRand at 512 gigibytes level with "no anomalies".
+  (note: only 10 trials and haven't tried larger inputs)
+
+  * produces 256 bits per call with period is 2^64
+  * there are ~2^62.9519 unique generators with easy
+    selection. (number is conservative. see below)
+  
+  Required SIMD (for "full" speed) hardware operations:
+  
+  * 64-bit addition
+  * 64-bit shift by constant
+  * 32-bit product (low 32-bit result)
+  
+  ──────────────────────────────────────────────────────────────
+  Overview (cvprng)
+
+  A combined (two state updates) generator extension of vprng.
+
+  * extended by Brent's 2 term xorshift (adds 32 bytes of state)
+  * period extends to 2^64(2^64-1) ~= 2^128
+  * one addition added to result path
+  * two xorshifts added to state update path
+  * signficant increase in expected statistical quality
+  
+  ──────────────────────────────────────────────────────────────
+  Usage
+
+  write stuff here XX
+
+  ──────────────────────────────────────────────────────────────
+  Optional compile time configuation.
+
+  There's a set of macros that can be defined to override
+  default compile time choices. They must be defined prior
+  to header inclusion.
+
+  VPRNG_CVT_F64_METHOD:
+  Override default method for 64-bit integer to double conversion.
+    0: equivalent to uint64_t to double cast
+    1: equivalent to int64_t  to double cast
+    2: bit manipulation
+  Choices 0 & 1 are good for when there's a matching hardware
+  operation. Current autoselection is garbage.
+
+  VPRNG_CVT_F32_METHOD:
+  Same as above but for 32-bit to single conversion
+
+  VPRNG_DISBLE_OPTIONAL_FMA: 
+  If defined disables some explict FMA usage. This is performance
+  only (default assumes fast FMA) and doesn't change results.
+  The compiler might still produce an FMA depending on architecture
+  and compiler options.
+
+  
+  ──────────────────────────────────────────────────────────────
+  Design and implementation details 
+  ──────────────────────────────────────────────────────────────
+
+  State update (vprng)
+
+  Walk four independent 64-bit integer Weyl sequences for the
+  state update. Each state has a period of 2^64.
+  
+  ┌─────────┬─────────┬─────────┬─────────┐
+  │  weyl 3 │  weyl 2 │  weyl 1 │  weyl 0 │  
+  └─────────┴─────────┴─────────┴─────────┘
+
+    t_i = weyl_i + inc_i      (store t_i)
+
+  The incoming states are passed to the mixer
+
+  ──────────────────────────────────────────────────────────────
+  State update (cvprng)
+
+  The additional state of the combined generator is a single
+  sequence of period 2^64-1 form by an XorShift. Specifically
+  the two term one originally presented by Richard Brent.
+  
+  ┌─────────┬─────────┬─────────┬─────────┐
+  │   x3    │   x2    │   x1    │   x0    │  
+  └─────────┴─────────┴─────────┴─────────┘
+
+     x_i ^= x_i << 7
+     x_i ^= x_i >> 9         (store x_i)
+
+  The two incoming states are added and passed to the mixer
+
+  ──────────────────────────────────────────────────────────────
+  Bit finalizing (mixing stage)
+
+  For bit finalizing we want to take the incoming state (so
+  the state update is independent from mixing) and pass
+  through a well performing bit finalizer. The trick is
+  AVX2 is pretty limited WRT fast operations that are
+  useful. But we do have 32-bit products and shifts which
+  allow for the standard xorshift/multiple finalizers.
+
+  If all targets have hardware SIMD 64-bit products and
+  shift (like AVX-512) then swapping to 64-bit versions
+  would give us running a four wide SplitMix.
+  
+  Back on topic. Using 32-bit finalizers presents some
+  gotchas. The period of the low 32-bits of each state is
+  only 2^32 and it is also lower entropy than the high 32
+  which is already super-weak. Coupling that with it's
+  going to be mixed with a 32-bit function is a sadface.
+  To correct this we can do the following:
+
+     t_i ^= t_i >> 33  // t_i = {h_i,l_i} as 32-bit
+
+  ┌────┬────┬────┬────┬────┬────┬────┬────┐
+  │ h3   l3 │ h2   l2 │ h1   l1 │ h0   l0 │ 
+  └────┴────┴────┴────┴────┴────┴────┴────┘
+
+  Now the low 32-bit chunks have a period of 2^64. The
+  important part is this a bijection so uniformity is
+  preserved. This "could" be replaced with a
+  non-bijective step that maintains uniformity but
+  none come to mind that aren't multiple steps and it
+  requires very careful thinking about the uniformity.
+
+  Next is the bit finalizer proper which uses a mixed
+  bit-width operations: 64-bit chunks still t_i
+  and as 32-bit chucks u_i
+
+  ┌─────────┬─────────┬─────────┬─────────┐
+  │    t3   │    t2   │    t2   │    t0   │ t_i
+  ├────┬────┼────┬────┼────┬────┼────┬────┤
+  │ u7 │ u6 │ u5 │ u4 │ u3 │ u2 │ u1 │ u0 │ u_i
+  └────┴────┴────┴────┴────┴────┴────┴────┘
+
+     // mix_i
+     t_i ^= t_i >> 16
+     u_i *= m0
+     t_i ^= t_i << 15
+     u_i *= m1
+     t_i ^= t_i >> 17
+
+   And we're done!
+       
+  ┌────┬────┬────┬────┬────┬────┬────┬────┐
+  │ r7 │ r6 │ r5 │ r4 │ r3 │ r2 │ r1 │ r0 │ r_i = mix_i(u_i)
+  └────┴────┴────┴────┴────┴────┴────┴────┘
+
+*/
+  
+
+// this should detect if we have a SIMD hardware op for
+// converting an 64-bit integer into a double. The wrapper
+// allows overriding the detection.
+//                          
+//  0: native uint
+//  1: native sint
+//  2: bit hack    
+
+//   intel: _mm256_cvtepi64_pd (vcvtqq2pd,  AVX512DQ + AVX512VL)
+//          _mm256_cvtepu64_pd (vcvtuqq2pd, AVX512DQ + AVX512VL)
+//          so either 0 or 1
+#ifndef VPRNG_CVT_F64_METHOD
+#if defined(__AVX512DQ__) && defined(__AVX512VL__)
+#define VPRNG_CVT_F64_METHOD 1
+#else
+#define VPRNG_CVT_F64_METHOD 2
+#endif
+#endif
+
+// likewise for 32-bit integer to single
+//   intel: _mm256_cvtepi32_ps (vcvtdq2ps, AVX2)
+#ifndef VPRNG_CVT_F32_METHOD
+#if defined(__AVX2__)
+#define VPRNG_CVT_F32_METHOD 0
+#else
+#define VPRNG_CVT_F32_METHOD 2
+#endif
+#endif
+
+//*******************************************************************
+// Stripped down "portable" 256 bit SIMD via vector_size extension
+
+#if !defined(SFH_SIMD_256)
+typedef uint32_t u32x8_t __attribute__ ((vector_size(32)));
+typedef int32_t  i32x8_t __attribute__ ((vector_size(32)));
+typedef uint64_t u64x4_t __attribute__ ((vector_size(32)));
+typedef int64_t  i64x4_t __attribute__ ((vector_size(32)));
+typedef float    f32x8_t __attribute__ ((vector_size(32)));
+typedef double   f64x4_t __attribute__ ((vector_size(32)));
+
+static inline u32x8_t vprng_cast_u32(u64x4_t u) { u32x8_t r; memcpy(&r,&u,32); return r; }
+static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); return r; }
+
+// remaining function defs later in file
+#endif
+
+
+//*******************************************************************
+// pay no attention to man behind the curtain
+
+#if defined(__GNUC__) && !defined(VPRNG_NO_BARRIER)
+#define vprng_result_barrier(X) __asm__ __volatile__("" : "+x"(X) : "x"(X));
+#else
+#define vprng_result_barrier(X)
+#endif
+
+
+//*******************************************************************
+// Core of the PRNGs defined here
+
+typedef struct { u64x4_t weyl; u64x4_t inc; } vprng_t;
+typedef struct { vprng_t base; u64x4_t xs;  } cvprng_t;
+
+// the finalizer parameters could be refined
+static const u32x8_t finalize_m0 =
+{
+  0x21f0aaad,
+  0x603a32a7,
+  0x21f0aaad,
+  0x97219aad,
+  0xb237694b,
+  0x8ee0d535,
+  0xdc63b4d3,
+  0x93f2552b
+};
+
+static const u32x8_t finalize_m1 =
+{
+  0xf35a2d97,
+  0x5a522677,
+  0xd35a2d97,
+  0xab46b735,
+  0xeb5b4593,
+  0x5dc6b5af,
+  0x2c32b9a9,  
+  0x959b4a4d
+};
+
+
+// 32x8 integer product
+static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
+{
+  return vprng_cast_u64(vprng_cast_u32(x)*m);
+}
+
+// bit-finalizer
+static inline u32x8_t vprng_mix(u64x4_t x)
+{
+  x ^= x >> 33; 
+  
+  x ^= x >> 16; x = vprng_mix_mul(x,finalize_m0);
+  x ^= x << 15; x = vprng_mix_mul(x,finalize_m1);
+  x ^= x >> 17;
+
+  return vprng_cast_u32(x);
+}
+
+static inline u32x8_t vprng_u32x8(vprng_t* prng)
+{
+  u64x4_t s = prng->weyl;
+  u32x8_t r = vprng_mix(s);
+
+  vprng_result_barrier(s);
+  
+  // update the state (Weyl sequence)
+  prng->weyl += prng->inc;
+    
+  return r;
+}
+
+static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
+{
+  u64x4_t w  = prng->base.weyl;
+  u64x4_t xs = prng->xs;
+  u32x8_t r  = vprng_mix(w+xs);
+
+  vprng_result_barrier(r);
+
+  // update the states (Weyl sequence and XorShift)
+  prng->base.weyl += prng->base.inc;
+  xs ^= xs << 7;
+  xs ^= xs >> 9;
+
+  prng->xs = xs;
+  
+  return r;
+}
+
+//*******************************************************************
+// BELOW HERE IS UTILITY FUNCTIONS AND COMPILER/ARCHTIECTURE
+// BOOKEEPING/SHENANIGNS
+//*******************************************************************
+
+//*******************************************************************
+// Additive constant generation.
+// https://marc-b-reynolds.github.io/math/2024/12/11/LCGAddConst.html
+//
+// Don't have the exact number of generators produced. The intial window
+// filter produces n = 17842322501232739958 candidates but I haven't
+// bothered figuring out how this number is reduced by the bit string
+// count (str < floor(pop/4)) rejection and need an exact number to be
+// be able to calculate the number of generators. But:
+//
+// Don't think it matters much because log2(floor[n/4]) ~= 61.9519
+
+#if defined(VPRNG_IMPLEMENTATION)
+
+#include <stdatomic.h>
+
+// 64-bit population count
+static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcountl(x); }
+
+static const uint64_t vprng_internal_inc_k  = 0x9e3779b96f4a7897;
+static const uint64_t vprng_internal_inc_i  = 0x2854c7d99c708727;
+
+
+static _Atomic uint64_t vprng_internal_inc_id = 1;
+
+void     vprng_id_set(uint64_t id) { atomic_store(&vprng_internal_inc_id, id);   }
+uint64_t vprng_id_get(void)        { return atomic_load(&vprng_internal_inc_id); }
+
+static uint64_t vprng_additive_next(void)
+{
+  uint64_t b;
+
+  do {
+    // atomically increment the global counter and
+    // convert it into a candidate additive constant
+    b  = atomic_fetch_add_explicit(&vprng_internal_inc_id,
+				   1,
+				   memory_order_relaxed);
+    b  = (b<<1)|1;
+    b *= vprng_internal_inc_k;
+
+    uint32_t pop = vprng_pop(b);
+    uint32_t t   = pop - (32-8);
+
+    if (t <= 2*8) {
+      uint32_t str = vprng_pop(b & (b ^ (b >> 1)));
+      if (str >= (pop >> 2)) return b;
+    }
+  } while(1);
+}
+
+
+//*******************************************************************
+
+// initialize position in stream to zero
+static inline void vprng_pos_init(vprng_t* prng)
+{
+  prng->weyl    = prng->inc >> 1;
+  prng->weyl[0] = prng->inc[0];
+}
+
+// initializes the generator to the next set of additive constants.
+void vprng_init(vprng_t* prng)
+{
+  prng->inc[0]  = vprng_additive_next();
+  prng->inc[1]  = vprng_additive_next();
+  prng->inc[2]  = vprng_additive_next();
+  prng->inc[3]  = vprng_additive_next();
+
+  vprng_pos_init(prng);
+}
+
+
+void cvprng_init(cvprng_t* prng)
+{
+  // inital state values. call x_i the xorshift sequence where:
+  //   x_0 = 1 (define)
+  //   x_i = xorshift(x_{i-1})
+  // then the inital values are {p0,p1,p2,p3} where the p's
+  // are approximately maximum distance apart (2^62). Start with
+  //   off = RoundToOdd[Floor[2^64 Sqrt[2]]] = 0x6a09e667f3bcc908
+  // just not to start at 0 and then each is further offset by
+  // a smallish prime which is intended to lower the chances
+  // that all four are in 'zeroland' at the same time.
+
+#ifndef VPRNG_HOBBLE_CVPRNG_INIT
+  // {x_p0,x_p1,x_p2,x_p3}
+  static const u64x4_t k = {0x55a07167039ee1bb,  // p0 = 0*2^62 + off
+			    0x2078e461244b6d4b,  // p1 = 1*2^62 + off + 31
+			    0xfb187856a5f450ff,  // p2 = 2*2^62 + off + 257
+			    0x7f6efb9bf3fc45e1}; // p3 = 2*2^62 + off + 541
+#else
+  // broken choices for statistical testing: {x_0,x_1,x_2,x_3}
+  static const u64x4_t k = {0x1,0x81,0x4021,0x204089};
+#endif  
+  
+  vprng_init(&(prng->base));
+  prng->xs = k;  
+}
+
+// mod-inverse of 64-bit integer
+// 
+static uint64_t vprng_modinv(uint64_t a)
+{
+  uint64_t x = (3*a)^2; 
+  uint64_t y  = 1 - a*x;
+  x = x*(1+y); y *= y;
+  x = x*(1+y); y *= y;
+  x = x*(1+y); y *= y;
+  x = x*(1+y);
+
+  return x;
+}
+
+// get the current position in the stream
+uint64_t vprng_pos_get(vprng_t* prng)
+{
+  return prng->weyl[0] * vprng_modinv(prng->inc[0]) - 1;
+}
+
+// moves position in stream by 'off'
+void vprng_pos_inc(vprng_t* prng, uint64_t off)
+{
+  prng->weyl += prng->inc * off;
+}
+
+// set the stream to position 'pos'
+void vprng_pos_set(vprng_t* prng, uint64_t pos)
+{
+  vprng_pos_init(prng);
+  vprng_pos_inc(prng,pos);
+}
+
+#else
+extern void     vprng_id_set(uint64_t id);
+extern uint64_t vprng_id_get(void);
+
+extern void     vprng_init(vprng_t* prng);
+extern void     cvprng_init(cvprng_t* prng);
+
+extern uin64_t  vprng_pos_get(vprng_t* prng);
+extern void     vprng_pos_set(vprng_t* prng, uint64_t pos);
+extern void     vprng_pos_off(vprng_t* prng, uint64_t pos);
+
+static inline uint64_t cvprng_pos_get(cvprng_t* prng) { return vprng_pos_get(&(prng->base));
+
+#endif
+
+
+//*******************************************************************
+// Stripped down "portable" 256 bit SIMD via vector_size extension
+
+// routines for strict aliasing happpy conversion.
+static inline i32x8_t vprng_cast_i32(u32x8_t u) { i32x8_t r; memcpy(&r,&u,32); return r; }
+static inline i64x4_t vprng_cast_i64(u64x4_t u) { i64x4_t r; memcpy(&r,&u,32); return r; }
+static inline f32x8_t vprng_cast_f32(u32x8_t u) { f32x8_t r; memcpy(&r,&u,32); return r; }
+static inline f64x4_t vprng_cast_f64(u64x4_t u) { f64x4_t r; memcpy(&r,&u,32); return r; }
+
+// if enabled some explicit FMA usages are disabled and is reverted to the
+// complier and command-line options discretion. produced results are
+// identical in either case. default assumes FMAs are "fast".
+#if !defined(VPRNG_DISBLE_OPTIONAL_FMA)
+
+static inline f32x8_t vprng_splat_fmaf(float a, f32x8_t b, float c)
+{
+  f32x8_t r; for(int i=0; i<8; i++) r[i] = fmaf(a,b[i],c); return r;
+}
+
+static inline f64x4_t vprng_splat_fma(double a, f64x4_t b, double c)
+{
+  f64x4_t r; for(int i=0; i<4; i++) r[i] = fma(a,b[i],c); return r;
+}
+
+#else
+static inline f32x8_t vprng_splat_fmaf(float a, f32x8_t b, float c)   { return a*b+c; }
+static inline f64x4_t vprng_splat_fma(double a, f64x4_t b, double c)  { return a*b+c; }
+#endif
+
+
+//*******************************************************************
+// need to jump through some hoops for integer to floating-point
+// conversion. want a single op if possible. sorry. can't be helped ATM.
+// both take integers with low bits of FP precision and convert
+ 
+static inline f32x8_t vprng_f32x8_i(u32x8_t u)
+{
+#if   (VPRNG_CVT_F32_METHOD == 0)
+  return 0x1.0p-24f * __builtin_convertvector(vprng_cast_i32(u), f32x8_t);
+#elif (VPRNG_CVT_F32_METHOD == 1)
+  return 0x1.0p-24f * __builtin_convertvector(u, f32x8_t);
+#elif (VPRNG_CVT_F32_METHOD == 2)
+  f32x8_t s = vprng_cast_f32(u | 0x3f800000);
+
+  return vprng_splat_fmaf(0x1.0p-24f, s, -1.f);
+#else
+#error "VPRNG_CVT_F32_METHOD not selected"  
+#endif  
+}
+
+static inline f64x4_t vprng_f64x4_i(u64x4_t u)
+{
+#if   (VPRNG_CVT_F64_METHOD == 0)
+  return 0x1.0p-53 * __builtin_convertvector(vprng_cast_i64(u), f64x4_t);
+#elif (VPRNG_CVT_F64_METHOD == 1)
+  return 0x1.0p-53 * __builtin_convertvector(u, f64x4_t);
+#elif (VPRNG_CVT_F64_METHOD == 2)
+  f64x4_t d = vprng_cast_f64(u | 0x3ff0000000000000);
+
+  return vprng_splat_fma(0x1.0p-53, d, -1.0);
+#else
+#error "VPRNG_CVT_F64_METHOD not selected"  
+#endif  
+}
+
+
+//*******************************************************************
+
+static inline u64x4_t vprng_u64x4 (vprng_t*  prng) { return vprng_cast_u64( vprng_u32x8(prng)); }
+static inline u64x4_t cvprng_u64x4(cvprng_t* prng) { return vprng_cast_u64(cvprng_u32x8(prng)); }
+
+static inline f64x4_t vprng_f64x4 (vprng_t*  prng) { return vprng_f64x4_i( vprng_u64x4(prng) >> 11); }
+static inline f32x8_t vprng_f32x8 (vprng_t*  prng) { return vprng_f32x8_i( vprng_u32x8(prng) >>  8); }
+static inline f64x4_t cvprng_f64x4(cvprng_t* prng) { return vprng_f64x4_i(cvprng_u64x4(prng) >> 11); }
+static inline f32x8_t cvprng_f32x8(cvprng_t* prng) { return vprng_f32x8_i(cvprng_u32x8(prng) >>  8); }
+
+
+// temp hack...nuke before making repo or clean-up into properly useful
+static inline void vprng_block_fill_u32(uint32_t n, u32x8_t buffer[static n], vprng_t* prng)
+{
+  for(uint32_t i=0; i<n; i++) { buffer[i] = vprng_u32x8(prng); }
+}
+
+static inline void cvprng_block_fill_u32(uint32_t n, u32x8_t buffer[static n], cvprng_t* prng)
+{
+  for(uint32_t i=0; i<n; i++) { buffer[i] = cvprng_u32x8(prng); }
+}
+
