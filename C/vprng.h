@@ -278,7 +278,7 @@ static inline u32x8_t vprng_u32x8(vprng_t* prng)
   u64x4_t s = prng->weyl;
   u32x8_t r = vprng_mix(s);
 
-  vprng_result_barrier(s);
+  vprng_result_barrier(r);
   
   // update the state (Weyl sequence)
   prng->weyl += prng->inc;
@@ -449,7 +449,7 @@ extern uint64_t vprng_id_get(void);
 extern void     vprng_init(vprng_t* prng);
 extern void     cvprng_init(cvprng_t* prng);
 
-extern uin64_t  vprng_pos_get(vprng_t* prng);
+extern uint64_t vprng_pos_get(vprng_t* prng);
 extern void     vprng_pos_set(vprng_t* prng, uint64_t pos);
 extern void     vprng_pos_off(vprng_t* prng, uint64_t pos);
 
