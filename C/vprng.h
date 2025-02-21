@@ -27,7 +27,6 @@
     selection. (number is conservative. see below)
   
   Required SIMD (for "full" speed) hardware operations:
-  
   * 64-bit addition
   * 64-bit shift by constant
   * 32-bit product (low 32-bit result)
@@ -164,7 +163,17 @@
   └────┴────┴────┴────┴────┴────┴────┴────┘
 
 */
-  
+
+#define VPRNG_VERSION_MAJOR    0
+#define VPRNG_VERSION_MINOR    0
+#define VPRNG_VERSION_REVISION 1
+#define VPRNG_VERSION (((VPRNG_VERSION_MAJOR) * 1000000) + ((VPRNG_VERSION_MINOR) * 1000) + (VPRNG_VERSION_REVISION))
+
+#define VPRNG_STRINGIFY_EX(X) #X
+#define VPRNG_STRINGIFY(X) VPRNG_STRINGIFY_EX(X)
+#define VPRNG_VERSION_STR VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
+                          VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
+                          VPRNG_STRINGIFY(VPRNG_VERSION_REVISION)
 
 // this should detect if we have a SIMD hardware op for
 // converting an 64-bit integer into a double. The wrapper
@@ -214,12 +223,19 @@ static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); r
 
 
 //*******************************************************************
-// pay no attention to man behind the curtain
+// pay no attention to the man behind the curtain
 
-#if defined(__GNUC__) && !defined(VPRNG_NO_BARRIER)
-#define vprng_result_barrier(X) __asm__ __volatile__("" : "+x"(X) : "x"(X));
+// version by Alexander Monakov but I'm the one wanting to coerce the
+// compiler into a modifed scheduling.
+// "to enforce scheduling, you can tie two independent dataflow chains
+//  in the barrier, for instance by pretending that the barrier modifies
+//  the tail of the chain computing the output (r) and a head of the chain
+//  computing the state(s) simultaneously"
+
+#if defined(__GNUC__) && defined(VPRNG_ENABLE_BARRIER)
+#define vprng_result_barrier(v1,v2) do asm ("" : "+x" (v1), "+x"(v2)); while(0)
 #else
-#define vprng_result_barrier(X)
+#define vprng_result_barrier(v1,v2) do ; while(0)
 #endif
 
 
@@ -278,10 +294,10 @@ static inline u32x8_t vprng_u32x8(vprng_t* prng)
   u64x4_t s = prng->weyl;
   u32x8_t r = vprng_mix(s);
 
-  vprng_result_barrier(r);
+  vprng_result_barrier(r,s);
   
   // update the state (Weyl sequence)
-  prng->weyl += prng->inc;
+  prng->weyl = s + prng->inc;
     
   return r;
 }
@@ -292,10 +308,11 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
   u64x4_t xs = prng->xs;
   u32x8_t r  = vprng_mix(w+xs);
 
-  vprng_result_barrier(r);
+  vprng_result_barrier(r,xs);
 
   // update the states (Weyl sequence and XorShift)
-  prng->base.weyl += prng->base.inc;
+  prng->base.weyl = w + prng->base.inc;
+
   xs ^= xs << 7;
   xs ^= xs >> 9;
 
@@ -402,6 +419,7 @@ void cvprng_init(cvprng_t* prng)
 			    0x7f6efb9bf3fc45e1}; // p3 = 2*2^62 + off + 541
 #else
   // broken choices for statistical testing: {x_0,x_1,x_2,x_3}
+  // for higher confidence levels if passes tests
   static const u64x4_t k = {0x1,0x81,0x4021,0x204089};
 #endif  
   
@@ -410,7 +428,6 @@ void cvprng_init(cvprng_t* prng)
 }
 
 // mod-inverse of 64-bit integer
-// 
 static uint64_t vprng_modinv(uint64_t a)
 {
   uint64_t x = (3*a)^2; 
