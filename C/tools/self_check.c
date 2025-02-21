@@ -1,0 +1,169 @@
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdalign.h>
+#include <math.h>
+#include <stdio.h>
+
+#include <x86intrin.h>
+
+#define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
+
+#define VPRNG_IMPLEMENTATION
+#include "vprng.h"
+
+
+#define HEADER     "\033[95m"
+#define OKBLUE     "\033[94m"
+#define OKCYAN     "\033[96m"
+#define OKGREEN    "\033[92m"
+#define WARNING    "\033[93m"
+#define FAIL       "\033[91m"
+#define ENDC       "\033[0m"
+#define BOLD       "\033[1m"
+#define UNDERLINE  "\033[4m"
+
+void test_banner(char* str)
+{
+  printf(BOLD "TESTING: %s" ENDC "\n", str);
+}
+
+void test_name(char* str)
+{
+  printf("  %-22s ", str);
+  fflush(stdout);
+}
+
+// note: pass returns zero and fail one.
+uint32_t test_fail(void) { printf(FAIL "FAIL!" ENDC "\n");     return 1; }
+uint32_t test_pass(void) { printf(OKGREEN "passed" ENDC "\n"); return 0; }
+
+
+uint32_t test_u64_eq(uint64_t a, uint64_t b)
+{
+  if (a==b) return test_pass();
+  return test_fail();
+}
+
+uint32_t check_basic(void)
+{
+  uint32_t errors = 0;
+  
+  test_banner("basic");
+
+  test_name("base weyl");
+  errors += test_u64_eq(vprng_internal_inc_k*vprng_internal_inc_i,1);
+
+  return errors;
+}
+
+bool u64x4_eq(u64x4_t a, u64x4_t b)
+{
+  // vpxor   ymm0, ymm0, ymm1
+  // vptest  ymm0, ymm0
+  // sete    al
+  return memcmp(&a, &b, sizeof(u64x4_t)) == 0;
+}
+
+void u64x4_print(u64x4_t x)
+{
+  printf("{%016lx,%016lx,%016lx,%016lx}", x[0],x[1],x[2],x[3]);
+}
+
+
+u32x8_t mod_inverse_u32x8(u32x8_t a)
+{
+  u32x8_t x = (3*a)^2; 
+  u32x8_t y = 1 - a*x;
+  x = x*(1+y); y *= y;
+  x = x*(1+y); y *= y;
+  x = x*(1+y);
+  return x;
+}
+
+
+uint32_t check_inv(vprng_t* prng)
+{
+  test_name("mix internal sanity:");
+  
+  // currently can handle modification the multiplicative
+  // constants. compute the inverses here.
+  u32x8_t i0 = mod_inverse_u32x8(finalize_m0);
+  u32x8_t i1 = mod_inverse_u32x8(finalize_m1);
+
+  // would require tweaks to automatically handle any
+  // changes of the xorshift constants.
+  
+  for(uint32_t i=0; i<33; i++) {
+    u64x4_t u0 = prng->weyl;
+    u64x4_t x  = vprng_u64x4(prng);
+    
+    // start inverse
+    x ^= x >> 17;               // x ^= x >> 17 (inverse)
+    x ^= x >> 34;
+    x = vprng_mix_mul(x, i1);
+    x ^= x << 15;               // x ^= x << 15 (inverse)
+    x ^= x << 30;
+    x ^= x << 60;
+    x = vprng_mix_mul(x, i0);
+    x ^= x >> 16;               // x ^= x >> 15 (inverse)
+    x ^= x >> 32;
+    x ^= x >> 33;               // x ^= x >> 33 (inverse)
+    
+    if (u64x4_eq(u0,x)) continue;
+    return test_fail();
+  } 
+
+  return test_pass();
+}
+
+
+// spot check position in stream manipulation
+uint32_t check_pos(vprng_t* prng)
+{
+  vprng_t copy = *prng;
+  
+  test_name("pos_{get,set}:");
+  
+  uint64_t initial = vprng_pos_get(prng);
+  
+  for(uint32_t i=0; i<15; i++) {
+    uint64_t pos  = vprng_pos_get(prng);
+    
+    vprng_pos_set(&copy, pos);
+    
+    bool same = u64x4_eq(prng->weyl, copy.weyl);
+    
+    vprng_u64x4(prng);
+
+    if (same && (pos == initial + i)) continue;
+    
+    return test_fail();
+  }
+
+  return test_pass();
+}
+
+
+int main(void)
+{
+  vprng_t  prng;
+  cvprng_t cprng;
+
+  vprng_id_set(1);
+  vprng_init(&prng);
+  cvprng_init(&cprng);
+  
+  uint32_t errors = 0;
+
+  errors += check_basic();
+  errors += check_inv(&prng);
+  errors += check_pos(&prng);
+
+
+  if (!errors) {
+    return 0;
+  }
+
+  return -1;
+}
