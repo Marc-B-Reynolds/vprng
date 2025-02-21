@@ -223,20 +223,21 @@ void help_options(char* name)
 {
   printf("Usage: %s OPTIONS FILE\n", name);
   printf("\n"
-	 "  --inc        Weyl sequence increment     (32-bit, odd)\n"
 	 "  --32         32-bit (default: 64-bit)\n"
 	 "  --id=N       vprng_id_set(N)\n"
+	 "  --cvprng     2 state version\n"
 	 "  --channel=N  only channel 'N' output\n"
+	 "  --blocks=N   produce N blocks of %u bytes\n"
 	 "  --help        \n"
 	 "\n"
-	 "\n");
+	 "\n", 32*BUFFER_LEN);
 
   exit(0);
 }
 
 int main(int argc, char** argv)
 {
-  uint64_t global_id    = 1;
+  uint64_t global_id    = 0;
   uint32_t mode         = 1;
   uint32_t blocks       = 0;
   uint32_t param_errors = 0;
@@ -245,6 +246,7 @@ int main(int argc, char** argv)
   static struct option long_options[] = {
     {"32",         no_argument,       0, 'w'},
     {"id",         required_argument, 0, 'g'},
+    {"cvprng",     no_argument,       0, 'x'},
     {"channel",    required_argument, 0, 'c'},
     {"blocks",     required_argument, 0, 'b'},
     {"help",       no_argument,       0, '?'}, 
@@ -264,6 +266,7 @@ int main(int argc, char** argv)
       case '?': help_options(argv[0]);         break;
       case 'g': global_id = parse_u64(optarg); break;
       case 'w': mode |= MODE_32;               break;
+      case 'x': mode |= CMODE;                 break;
 
       case 'b':
 	blocks = (uint32_t)parse_u64(optarg);
