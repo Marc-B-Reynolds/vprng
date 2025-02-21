@@ -103,7 +103,10 @@
      x_i ^= x_i << 7
      x_i ^= x_i >> 9         (store x_i)
 
-  The two incoming states are added and passed to the mixer
+  The two incoming states are added and passed to the mixer.
+
+  A compile time option (VPRNG_CVPRNG_3TERM) changes the state
+  update to a standard 3-term XorShift.
 
   ──────────────────────────────────────────────────────────────
   Bit finalizing (mixing stage)
@@ -205,6 +208,12 @@
 #endif
 
 //*******************************************************************
+
+#define VPRNG_XS_A 10
+#define VPRNG_XS_B 7
+#define VPRNG_XS_C 33
+
+//*******************************************************************
 // Stripped down "portable" 256 bit SIMD via vector_size extension
 
 #if !defined(SFH_SIMD_256)
@@ -232,7 +241,7 @@ static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); r
 //  the tail of the chain computing the output (r) and a head of the chain
 //  computing the state(s) simultaneously"
 
-#if defined(__GNUC__) && defined(VPRNG_ENABLE_BARRIER)
+#if defined(VPRNG_ENABLE_BARRIER)
 #define vprng_result_barrier(v1,v2) do asm ("" : "+x" (v1), "+x"(v2)); while(0)
 #else
 #define vprng_result_barrier(v1,v2) do ; while(0)
@@ -250,7 +259,7 @@ static const u32x8_t finalize_m0 =
 {
   0x21f0aaad,
   0x603a32a7,
-  0x21f0aaad,
+  0xa812d533,
   0x97219aad,
   0xb237694b,
   0x8ee0d535,
@@ -262,7 +271,7 @@ static const u32x8_t finalize_m1 =
 {
   0xf35a2d97,
   0x5a522677,
-  0xd35a2d97,
+  0xb278e4ad,
   0xab46b735,
   0xeb5b4593,
   0x5dc6b5af,
@@ -313,8 +322,14 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
   // update the states (Weyl sequence and XorShift)
   prng->base.weyl = w + prng->base.inc;
 
+#if !defined(VPRNG_CVPRNG_3TERM)
   xs ^= xs << 7;
   xs ^= xs >> 9;
+#else
+  xs ^= xs << 10;
+  xs ^= xs >>  7;
+  xs ^= xs << 33;
+#endif  
 
   prng->xs = xs;
   
@@ -398,7 +413,9 @@ void vprng_init(vprng_t* prng)
   vprng_pos_init(prng);
 }
 
+#ifndef VPRNG_CVPRNG_3TERM
 
+// Brent's 2 term XorShift (default)
 void cvprng_init(cvprng_t* prng)
 {
   // inital state values. call x_i the xorshift sequence where:
@@ -411,8 +428,8 @@ void cvprng_init(cvprng_t* prng)
   // a smallish prime which is intended to lower the chances
   // that all four are in 'zeroland' at the same time.
 
-#ifndef VPRNG_HOBBLE_CVPRNG_INIT
   // {x_p0,x_p1,x_p2,x_p3}
+#ifndef VPRNG_CVPRNG_HOBBLE_INIT
   static const u64x4_t k = {0x55a07167039ee1bb,  // p0 = 0*2^62 + off
 			    0x2078e461244b6d4b,  // p1 = 1*2^62 + off + 31
 			    0xfb187856a5f450ff,  // p2 = 2*2^62 + off + 257
@@ -421,11 +438,38 @@ void cvprng_init(cvprng_t* prng)
   // broken choices for statistical testing: {x_0,x_1,x_2,x_3}
   // for higher confidence levels if passes tests
   static const u64x4_t k = {0x1,0x81,0x4021,0x204089};
-#endif  
+#endif
+
+  vprng_init(&(prng->base));
+  prng->xs = k;  
+}
+
+
+#else
+
+// Optional three term XorShift: (I+L^b)(I+R^b)(I+L^a)
+// This is from Francois Panneton's Thesis. Choosen
+// from the ones with the top measures at uniformity.
+
+void cvprng_init(cvprng_t* prng)
+{
+  // otherwise comments follow that of the 2 term
+#ifndef VPRNG_CVPRNG_HOBBLE_INIT
+  static const u64x4_t k = {0xc5da252a1302a152,
+			    0x7a888ce4d7ff17cc,
+			    0xf3e14609aa2f25ea,
+			    0x1af45fbbbc2fa67f};
+#else
+  static const u64x4_t k = {0x1,0x81200000409,0x4800000024100049,0xc1220c9344d90601};
+#endif
   
   vprng_init(&(prng->base));
   prng->xs = k;  
 }
+
+#endif
+
+
 
 // mod-inverse of 64-bit integer
 static uint64_t vprng_modinv(uint64_t a)
@@ -470,7 +514,7 @@ extern uint64_t vprng_pos_get(vprng_t* prng);
 extern void     vprng_pos_set(vprng_t* prng, uint64_t pos);
 extern void     vprng_pos_off(vprng_t* prng, uint64_t pos);
 
-static inline uint64_t cvprng_pos_get(cvprng_t* prng) { return vprng_pos_get(&(prng->base));
+static inline uint64_t cvprng_pos_get(cvprng_t* prng) { return vprng_pos_get(&(prng->base)); }
 
 #endif
 
