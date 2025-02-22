@@ -255,11 +255,17 @@ typedef struct { u64x4_t weyl; u64x4_t inc; } vprng_t;
 typedef struct { vprng_t base; u64x4_t xs;  } cvprng_t;
 
 // the finalizer parameters could be refined
+// * Ok defs need revisiting marked pairs seem
+//   too similar and will lead to a weakness
+//   but replacing with "nuked" consants then
+//   everything goes sideway. consistently
+//   questionable at 256gb and fails at 512gb.
 static const u32x8_t finalize_m0 =
 {
-  0x21f0aaad,
+  0x21f0aaad, // 
   0x603a32a7,
-  0xa812d533,
+  0x21f0aaad, // 
+//0xa812d533, nuked
   0x97219aad,
   0xb237694b,
   0x8ee0d535,
@@ -269,9 +275,10 @@ static const u32x8_t finalize_m0 =
 
 static const u32x8_t finalize_m1 =
 {
-  0xf35a2d97,
+  0xf35a2d97, // 
   0x5a522677,
-  0xb278e4ad,
+  0xd35a2d97, // 
+//0xb278e4ad, nuked 
   0xab46b735,
   0xeb5b4593,
   0x5dc6b5af,
