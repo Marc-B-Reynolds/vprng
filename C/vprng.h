@@ -260,6 +260,10 @@ typedef struct { vprng_t base; u64x4_t xs;  } cvprng_t;
 //   but replacing with "nuked" consants then
 //   everything goes sideway. consistently
 //   questionable at 256gb and fails at 512gb.
+//   see below
+
+#if 0
+
 static const u32x8_t finalize_m0 =
 {
   0x21f0aaad, // 
@@ -285,6 +289,38 @@ static const u32x8_t finalize_m1 =
   0x2c32b9a9,  
   0x959b4a4d
 };
+
+#else
+
+// curiouser and curiouser flipping to these
+// repeated finalizer constants is seeing
+// consistently passing up to 512 GB with
+// 'no anomalies'
+
+static const u32x8_t finalize_m0 =
+{
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+  0x21f0aaad, // 
+};
+
+static const u32x8_t finalize_m1 =
+{
+  0xf35a2d97, // 
+  0xd35a2d97, // 
+  0xf35a2d97, // 
+  0xd35a2d97, // 
+  0xf35a2d97, // 
+  0xd35a2d97, // 
+  0xf35a2d97, // 
+  0xd35a2d97, // 
+};
+#endif
 
 
 // 32x8 integer product
