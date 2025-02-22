@@ -237,8 +237,8 @@ void help_options(char* name)
 
 int main(int argc, char** argv)
 {
-  uint64_t global_id    = 0;
-  uint32_t mode         = 1;
+  uint64_t global_id    = 1;
+  uint32_t mode         = 0;
   uint32_t blocks       = 0;
   uint32_t param_errors = 0;
   FILE *   file         = stdout;
