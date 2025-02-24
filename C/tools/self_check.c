@@ -81,6 +81,14 @@ u32x8_t mod_inverse_u32x8(u32x8_t a)
   return x;
 }
 
+static inline u64x4_t rxorshift_inv_64x4(u64x4_t x, uint32_t n)
+{
+  while(n < 64) { x ^= x >> n; n += n; } return x;
+}
+static inline u64x4_t lxorshift_inv_64x4(u64x4_t x, uint32_t n)
+{
+  while(n < 64) { x ^= x << n; n += n; } return x;
+}
 
 uint32_t check_inv(vprng_t* prng)
 {
@@ -95,20 +103,17 @@ uint32_t check_inv(vprng_t* prng)
   // changes of the xorshift constants.
   
   for(uint32_t i=0; i<33; i++) {
-    u64x4_t u0 = prng->weyl;
+    u64x4_t u0 = prng->state;
     u64x4_t x  = vprng_u64x4(prng);
     
     // start inverse
-    x ^= x >> 17;               // x ^= x >> 17 (inverse)
-    x ^= x >> 34;
+    x = rxorshift_inv_64x4(x,17); // x ^= x >> 17 (inverse)
     x = vprng_mix_mul(x, i1);
-    x ^= x << 15;               // x ^= x << 15 (inverse)
-    x ^= x << 30;
-    x ^= x << 60;
+    x = lxorshift_inv_64x4(x,15); // x ^= x << 15
     x = vprng_mix_mul(x, i0);
-    x ^= x >> 16;               // x ^= x >> 15 (inverse)
-    x ^= x >> 32;
-    x ^= x >> 33;               // x ^= x >> 33 (inverse)
+    x = rxorshift_inv_64x4(x,16); // x ^= x >> 16 (inverse)
+
+    x = rxorshift_inv_64x4(x,33); // x ^= x >> 33 (inverse)
     
     if (u64x4_eq(u0,x)) continue;
     return test_fail();
@@ -132,7 +137,7 @@ uint32_t check_pos(vprng_t* prng)
     
     vprng_pos_set(&copy, pos);
     
-    bool same = u64x4_eq(prng->weyl, copy.weyl);
+    bool same = u64x4_eq(prng->state, copy.state);
     
     vprng_u64x4(prng);
 
