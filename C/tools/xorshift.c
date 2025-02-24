@@ -9,6 +9,8 @@
 // create initial state values for the XorShift
 // let the first value of the "sequence" be one then
 
+
+
 #ifndef VPRNG_CVPRNG_HOBBLE_INIT
 #define OFF  (0x6a09e667f3bcc909ULL)
 #define P0   (0x0000000000000000ULL+OFF)
