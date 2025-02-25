@@ -575,7 +575,7 @@ void help_options(char* name)
 	 "  --counters           \n"
 	 "\n Sampling            only used for non-file runs\n"
 	 "  --cvprng             combined generator\n"
-	 "  --id=VALUE           vprng_id_set value (default is random)\n"
+	 "  --id=VALUE           vprng_global_id_set value (default is random)\n"
 	 "");
 
   exit(0);
@@ -750,7 +750,7 @@ int main(int argc, char** argv)
 
   parse_options(argc, argv);
 
-  vprng_id_set(init_id);
+  vprng_global_id_set(init_id);
   vprng_init(&vprng);
   cvprng_init(&cvprng);
   vprng_u32x8(&vprng);
