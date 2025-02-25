@@ -155,7 +155,7 @@ int main(void)
   vprng_t  prng;
   cvprng_t cprng;
 
-  vprng_id_set(1);
+  vprng_global_id_set(1);
   vprng_init(&prng);
   cvprng_init(&cprng);
   
