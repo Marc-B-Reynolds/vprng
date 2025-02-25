@@ -1,0 +1,9 @@
+# ignore everything!
+*
+
+# except for these:
+!.gitignore
+!*.[ch]
+!Makefile
+!README.md
+!data
