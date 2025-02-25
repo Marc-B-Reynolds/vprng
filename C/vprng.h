@@ -178,6 +178,11 @@
                           VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
                           VPRNG_STRINGIFY(VPRNG_VERSION_REVISION)
 
+
+#ifndef VPRNG_NAME
+#define VPRNG_NAME "vprng"
+#endif
+
 // this should detect if we have a SIMD hardware op for
 // converting an 64-bit integer into a double. The wrapper
 // allows overriding the detection.
@@ -235,11 +240,13 @@ static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); r
 // pay no attention to the man behind the curtain
 
 // version by Alexander Monakov but I'm the one wanting to coerce the
-// compiler into a modifed scheduling.
+// compiler into a modifed scheduling. Supporting comment:
 // "to enforce scheduling, you can tie two independent dataflow chains
 //  in the barrier, for instance by pretending that the barrier modifies
 //  the tail of the chain computing the output (r) and a head of the chain
 //  computing the state(s) simultaneously"
+// rationale: I'd prefer the bit finalizing steps to be issued prior to
+// the state update to reduce the latency of the result being ready.
 
 #if defined(VPRNG_ENABLE_BARRIER)
 #define vprng_result_barrier(v1,v2) do asm ("" : "+x" (v1), "+x"(v2)); while(0)
@@ -249,10 +256,10 @@ static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); r
 
 
 //*******************************************************************
-// Core of the PRNGs defined here
+// core of the PRNGs defined here
 
-typedef struct { u64x4_t weyl; u64x4_t inc; } vprng_t;
-typedef struct { vprng_t base; u64x4_t xs;  } cvprng_t;
+typedef struct { u64x4_t state; u64x4_t inc; } vprng_t;
+typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
 
 // the finalizer parameters could be refined
 // * Ok defs need revisiting marked pairs seem
@@ -263,7 +270,6 @@ typedef struct { vprng_t base; u64x4_t xs;  } cvprng_t;
 //   see below
 
 #if 0
-
 static const u32x8_t finalize_m0 =
 {
   0x21f0aaad, // 
@@ -294,8 +300,15 @@ static const u32x8_t finalize_m1 =
 
 // curiouser and curiouser flipping to these
 // repeated finalizer constants is seeing
-// consistently passing up to 512 GB with
-// 'no anomalies'
+// consistently passing up to 512 GB (1) with
+// 'no anomalies'. Moreover they are rather
+// peculiar values. last 2 are pop and string counts
+//                                              
+// 21f0aaad ..1....11111....1.1.1.1.1.1.11.1 : 15 10
+// f35a2d97 1111..11.1.11.1...1.11.11..1.111 : 19 10
+// d35a2d97 11.1..11.1.11.1...1.11.11..1.111 : 18 11
+//
+// 1) the maximum I've been testing
 
 static const u32x8_t finalize_m0 =
 {
@@ -322,14 +335,14 @@ static const u32x8_t finalize_m1 =
 };
 #endif
 
-
 // 32x8 integer product
 static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
 {
   return vprng_cast_u64(vprng_cast_u32(x)*m);
 }
 
-// bit-finalizer
+// compile time select the bit finalizer
+#if !defined(VPRNG_MIX_EXTERNAL)
 static inline u32x8_t vprng_mix(u64x4_t x)
 {
   x ^= x >> 33; 
@@ -340,41 +353,71 @@ static inline u32x8_t vprng_mix(u64x4_t x)
 
   return vprng_cast_u32(x);
 }
+#else
+static inline u32x8_t vprng_mix(u64x4_t x);
+#endif
 
+
+// compile time select the state update
+#if !defined(VPRNG_STATE_EXTERNAL)
+static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i)
+{
+  return s + i;
+}
+#else
+static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i);
+#endif
+
+
+// compile time select the second state update
+#if !defined(VPRNG_STATE2_EXTERNAL)
+#if !defined(VPRNG_CVPRNG_3TERM)
+static inline u64x4_t cvprng_state_up(u64x4_t s)
+{
+  s ^= s << 7;
+  s ^= s >> 9;
+
+  return s;
+}
+#else
+static inline u64x4_t cvprng_state_up(u64x4_t s)
+{
+  s ^= s << 10;
+  s ^= s >>  7;
+  s ^= s << 33;
+
+  return s;
+}
+#endif
+#else
+static inline u64x4_t cvprng_state_up(u64x4_t s);
+#endif
+
+
+// core base generator
 static inline u32x8_t vprng_u32x8(vprng_t* prng)
 {
-  u64x4_t s = prng->weyl;
+  u64x4_t s = prng->state;
   u32x8_t r = vprng_mix(s);
 
   vprng_result_barrier(r,s);
   
-  // update the state (Weyl sequence)
-  prng->weyl = s + prng->inc;
+  prng->state = vprng_state_up(s,prng->inc);
     
   return r;
 }
 
+// core combined generator
 static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 {
-  u64x4_t w  = prng->base.weyl;
-  u64x4_t xs = prng->xs;
-  u32x8_t r  = vprng_mix(w+xs);
+  u64x4_t s0 = prng->base.state;
+  u64x4_t s1 = prng->f2;
+  u32x8_t r  = vprng_mix(s0+s1);
 
-  vprng_result_barrier(r,xs);
+  vprng_result_barrier(r,s1);
 
-  // update the states (Weyl sequence and XorShift)
-  prng->base.weyl = w + prng->base.inc;
-
-#if !defined(VPRNG_CVPRNG_3TERM)
-  xs ^= xs << 7;
-  xs ^= xs >> 9;
-#else
-  xs ^= xs << 10;
-  xs ^= xs >>  7;
-  xs ^= xs << 33;
-#endif  
-
-  prng->xs = xs;
+  prng->base.state = vprng_state_up (s0, prng->base.inc);
+  prng->f2         = cvprng_state_up(s1);
   
   return r;
 }
@@ -409,8 +452,8 @@ static const uint64_t vprng_internal_inc_i  = 0x2854c7d99c708727;
 
 static _Atomic uint64_t vprng_internal_inc_id = 1;
 
-void     vprng_id_set(uint64_t id) { atomic_store(&vprng_internal_inc_id, id);   }
-uint64_t vprng_id_get(void)        { return atomic_load(&vprng_internal_inc_id); }
+void     vprng_global_id_set(uint64_t id) { atomic_store(&vprng_internal_inc_id, id);   }
+uint64_t vprng_global_id_get(void)        { return atomic_load(&vprng_internal_inc_id); }
 
 static uint64_t vprng_additive_next(void)
 {
@@ -441,8 +484,8 @@ static uint64_t vprng_additive_next(void)
 // initialize position in stream to zero
 static inline void vprng_pos_init(vprng_t* prng)
 {
-  prng->weyl    = prng->inc >> 1;
-  prng->weyl[0] = prng->inc[0];
+  prng->state    = prng->inc >> 1;
+  prng->state[0] = prng->inc[0];
 }
 
 // initializes the generator to the next set of additive constants.
@@ -484,7 +527,7 @@ void cvprng_init(cvprng_t* prng)
 #endif
 
   vprng_init(&(prng->base));
-  prng->xs = k;  
+  prng->f2 = k;  
 }
 
 
@@ -507,12 +550,10 @@ void cvprng_init(cvprng_t* prng)
 #endif
   
   vprng_init(&(prng->base));
-  prng->xs = k;  
+  prng->f2 = k;  
 }
 
 #endif
-
-
 
 // mod-inverse of 64-bit integer
 static uint64_t vprng_modinv(uint64_t a)
@@ -530,13 +571,13 @@ static uint64_t vprng_modinv(uint64_t a)
 // get the current position in the stream
 uint64_t vprng_pos_get(vprng_t* prng)
 {
-  return prng->weyl[0] * vprng_modinv(prng->inc[0]) - 1;
+  return prng->state[0] * vprng_modinv(prng->inc[0]) - 1;
 }
 
 // moves position in stream by 'off'
 void vprng_pos_inc(vprng_t* prng, uint64_t off)
 {
-  prng->weyl += prng->inc * off;
+  prng->state += prng->inc * off;
 }
 
 // set the stream to position 'pos'
