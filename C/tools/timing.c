@@ -317,8 +317,7 @@ int set_thread_max_priority(pthread_t thread)
 
 int main(void)
 {
-
-  vprng_id_set(1);
+  vprng_global_id_set(1);
 
   vprng_init(&vprng);
   cvprng_init(&cvprng);
