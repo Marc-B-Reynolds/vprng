@@ -1,0 +1,84 @@
+RNG_test using PractRand version 0.94
+RNG = RNG_stdin64, seed = 10
+test set = core, folding = standard (64 bit)
+
+rng=RNG_stdin64, seed=10
+length= 1 megabyte (2^20 bytes), time= 0.1 seconds
+  no anomalies in 93 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 2 megabytes (2^21 bytes), time= 0.5 seconds
+  no anomalies in 105 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 4 megabytes (2^22 bytes), time= 0.9 seconds
+  no anomalies in 120 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 8 megabytes (2^23 bytes), time= 1.4 seconds
+  no anomalies in 133 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 16 megabytes (2^24 bytes), time= 1.9 seconds
+  no anomalies in 147 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 32 megabytes (2^25 bytes), time= 2.6 seconds
+  no anomalies in 162 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 64 megabytes (2^26 bytes), time= 3.6 seconds
+  no anomalies in 177 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 128 megabytes (2^27 bytes), time= 5.2 seconds
+  no anomalies in 193 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 256 megabytes (2^28 bytes), time= 8.1 seconds
+  no anomalies in 210 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 512 megabytes (2^29 bytes), time= 13.5 seconds
+  no anomalies in 226 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 1 gigabyte (2^30 bytes), time= 23.9 seconds
+  no anomalies in 243 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 2 gigabytes (2^31 bytes), time= 44.0 seconds
+  no anomalies in 261 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 4 gigabytes (2^32 bytes), time= 83.8 seconds
+  no anomalies in 277 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 8 gigabytes (2^33 bytes), time= 163 seconds
+  no anomalies in 294 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 16 gigabytes (2^34 bytes), time= 322 seconds
+  no anomalies in 310 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 32 gigabytes (2^35 bytes), time= 635 seconds
+  no anomalies in 325 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 64 gigabytes (2^36 bytes), time= 1275 seconds
+  no anomalies in 340 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 128 gigabytes (2^37 bytes), time= 2561 seconds
+  no anomalies in 355 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 256 gigabytes (2^38 bytes), time= 5114 seconds
+  no anomalies in 369 test result(s)
+
+rng=RNG_stdin64, seed=10
+length= 512 gigabytes (2^39 bytes), time= 10398 seconds
+  no anomalies in 383 test result(s)
+
