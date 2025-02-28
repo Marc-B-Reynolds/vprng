@@ -1,3 +1,5 @@
+// for dump PRNG output to either a file or stdout for statistical testing or regression testing
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -23,14 +25,37 @@
 #define ENDC       "\033[0m"
 #define BOLD       "\033[1m"
 
+// true if only dumping informtion about what the run would do
+bool dry_run = false;
+
+uint64_t global_id = 1;
+uint64_t test_id   = UINT64_C(-1);
+
+// dump run information to stderr (for user info and/or capture by calling scripts)
+// not stdio since that can be consumed by a piped executable
+void test_banner_i(char* str)
+{
+  fprintf(stderr, BOLD "%s" ENDC " (%s) id=%lu", str, VPRNG_VERSION_STR, global_id);
+
+  if (test_id != UINT64_C(-1))
+    fprintf(stderr, " (from test-id=%lu) ", test_id);
+}
+
+
 void test_banner(char* str)
 {
-  fprintf(stderr, BOLD "%s" ENDC " (%s)\n", str, VPRNG_VERSION_STR);
+  test_banner_i(str);
+  fprintf(stderr, "\n");
+
+  if (dry_run) exit(0);
 }
 
 void test_banner_2(char* str, uint32_t i)
 {
-  fprintf(stderr, BOLD "%s %u" ENDC " (%s)\n", str,i, VPRNG_VERSION_STR);
+  test_banner_i(str);
+  fprintf(stderr, "channel=%u\n", i);
+
+  if (dry_run) exit(0);
 }
 
 uint64_t parse_u64(char* str)
@@ -67,6 +92,7 @@ void print_warning(char* msg)
 
 u32x8_t buffer[BUFFER_LEN];
 
+// vprng all 256-bit output
 void spew_all(FILE* file, uint64_t n)
 {
   test_banner("vprng");
@@ -86,6 +112,7 @@ void spew_all(FILE* file, uint64_t n)
   }
 }
 
+// cvprng all 256-bit output
 void cspew_all(FILE* file, uint64_t n)
 {
   test_banner("cvprng");
@@ -105,7 +132,7 @@ void cspew_all(FILE* file, uint64_t n)
   }
 }
 
-
+// vprng: single 32-bit channel 'c' output
 static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
 {
   test_banner_2("vprng 32-bit lane:", c);
@@ -130,6 +157,7 @@ static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
   }
 }
 
+// cprng: single 32-bit channel 'c' output
 static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
 {
   test_banner_2("cvprng 32-bit lane:", c);
@@ -154,6 +182,7 @@ static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
   }
 }
 
+// vprng: single 64-bit channel 'c' output
 static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
 {
   test_banner_2("vprng 64-bit lane:", c);
@@ -178,6 +207,7 @@ static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
   }
 }
 
+// cvprng: single 64-bit channel 'c' output
 static inline void cspew_channel_64(FILE* file, uint64_t n, uint32_t c)
 {
   test_banner_2("cvprng 64-bit lane:", c);
@@ -224,11 +254,13 @@ void help_options(char* name)
   printf("Usage: %s OPTIONS FILE\n", name);
   printf("\n"
 	 "  --32         32-bit (default: 64-bit)\n"
-	 "  --id=N       vprng_id_set(N)\n"
+	 "  --id=N       vprng_global_id_set(N)\n"
+	 "  --test-id=N  see README.md\n"
 	 "  --cvprng     2 state version\n"
 	 "  --channel=N  only channel 'N' output\n"
 	 "  --blocks=N   produce N blocks of %u bytes\n"
-	 "  --help        \n"
+	 "  --dryrun     dumps out banner information to stderr\n"
+	 "  --help       \n"
 	 "\n"
 	 "\n", 32*BUFFER_LEN);
 
@@ -237,7 +269,6 @@ void help_options(char* name)
 
 int main(int argc, char** argv)
 {
-  uint64_t global_id    = 1;
   uint32_t mode         = 0;
   uint32_t blocks       = 0;
   uint32_t param_errors = 0;
@@ -246,9 +277,11 @@ int main(int argc, char** argv)
   static struct option long_options[] = {
     {"32",         no_argument,       0, 'w'},
     {"id",         required_argument, 0, 'g'},
+    {"test-id",    required_argument, 0, 't'},
     {"cvprng",     no_argument,       0, 'x'},
     {"channel",    required_argument, 0, 'c'},
     {"blocks",     required_argument, 0, 'b'},
+    {"dryrun",     no_argument,       0, 'd'},
     {"help",       no_argument,       0, '?'}, 
     {0,            0,                 0,  0 }
   };
@@ -267,6 +300,7 @@ int main(int argc, char** argv)
       case 'g': global_id = parse_u64(optarg); break;
       case 'w': mode |= MODE_32;               break;
       case 'x': mode |= CMODE;                 break;
+      case 'd': dry_run = true;                break;
 
       case 'b':
 	blocks = (uint32_t)parse_u64(optarg);
@@ -275,6 +309,29 @@ int main(int argc, char** argv)
       case 'c':
 	channel = (uint32_t)parse_u64(optarg);
 	mode   |= MODE_X;
+	break;
+
+      case 't': {
+	// find the n^th (zero based) acceptiable set of additive
+	// constants.
+	uint64_t tid = parse_u64(optarg);
+	  if (tid < 256) {
+	    vprng_t t;
+	    test_id = tid;
+	    vprng_init(&t);
+	    
+	    while(tid != 0) {
+	      vprng_init(&t);
+	      tid--;
+	    }
+
+	    global_id = vprng_id_get(&t);
+   	  }
+	  else {
+	    print_error("test-id must be on [0,255]");
+	    exit(-1);
+	  }
+	}
 	break;
       }
   }
@@ -304,7 +361,7 @@ int main(int argc, char** argv)
     }
 
     // 
-    vprng_id_set(global_id);
+    vprng_global_id_set(global_id);
     
     switch(mode) {
 
