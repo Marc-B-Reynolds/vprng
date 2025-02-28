@@ -75,9 +75,15 @@ uint64_t xorshift_8(uint64_t x) { return xorshift_x1(x,23,15,25); } // 3
 uint64_t xorshift_9(uint64_t x) { return xorshift_x1(x,11, 5,32); } // 3
 uint64_t xorshift_a(uint64_t x) { return xorshift_x2(x,11, 5,32); } // 3
 
+
+uint64_t xorshift_b0(uint64_t x) { return xorshift_x1(x,1, 1,55); } // 
+uint64_t xorshift_b1(uint64_t x) { return xorshift_x2(x,1, 1,55); } // 
+uint64_t xorshift_b2(uint64_t x) { return xorshift_x5(x,1, 1,55); } // 
+
 typedef struct { char* name; uint64_t (*f)(uint64_t); } f_def_t;
 
 f_def_t xorshift_table[] = {
+#if 1
   {.name="2-term      ", .f=xorshift2 },
   {.name="x2( 5,15,27)", .f=xorshift_0 },
   {.name="x5(10, 7,33)", .f=xorshift_1 },
@@ -90,6 +96,12 @@ f_def_t xorshift_table[] = {
   {.name="x1(23,15,25)", .f=xorshift_8 },
   {.name="x1(11, 5,32)", .f=xorshift_9 },
   {.name="x2(11, 5,32)", .f=xorshift_a },
+#elif 1
+#else  
+  {.name="x1(11, 5,32)", .f=xorshift_b0 },
+  {.name="x2(11, 5,32)", .f=xorshift_b1 },
+  {.name="x1(11, 5,32)", .f=xorshift_b2 },
+#endif
 };
 
 uint64_t xorshift3(uint64_t s)
@@ -120,6 +132,7 @@ void zeroland_info(void)
 
   for(uint32_t id=0; id<LENGTHOF(xorshift_table); id++) {
     uint64_t (*f)(uint64_t) = xorshift_table[id].f;
+    uint32_t max = 0;
     
     printf("|`%s`|", xorshift_table[id].name);
 
@@ -146,6 +159,9 @@ void zeroland_info(void)
 	}
 
 	seq_stats_add(&stats, (double)et);
+
+	max = max >= et ? max : et;
+	
 	u0 = pop_next_64(u0);
       } while(u0 != UINT64_C(-1));
 
@@ -153,14 +169,53 @@ void zeroland_info(void)
 	     seq_stats_mean(&stats),
 	     seq_stats_stddev(&stats));
     }
-    printf("\n");
+    printf("%2u|\n", max);
   }
 }
 
 
 int main(void)
 {
-  zeroland_info();
+  zeroland_info(); return 0;
 
+  vprng_t prng;
+
+  vprng_global_id_set(1);
+  
+  for(uint32_t i=0; i<10; i++) {
+    vprng_init(&prng);
+    printf("%2lu,", vprng_id_get(&prng));
+  }
+  printf("\n");
+
+  vprng_global_id_set(1);
+
+  for(uint32_t i=0; i<10; i++) {
+    vprng_init(&prng);
+    printf("%2lu,", vprng_global_id_get());
+  }
+  printf("\n");
+
+
+  vprng_global_id_set(1);
+
+  for(uint32_t i=0; i<10; i++) {
+    vprng_init(&prng);
+    printf("%016lx %016lx %016lx %016lx\n", prng.inc[0],prng.inc[1],prng.inc[2],prng.inc[3]);
+  }
+  printf("");
+
+  vprng_global_id_set(1);
+
+  for(uint32_t i=0; i<10; i++) {
+    vprng_init(&prng);
+    printf("%2lu %2lu %2lu %2lu\n",
+	   (vprng_internal_inc_i*prng.inc[0])>>1,
+	   (vprng_internal_inc_i*prng.inc[1])>>1,
+	   (vprng_internal_inc_i*prng.inc[2])>>1,
+	   (vprng_internal_inc_i*prng.inc[3])>>1);
+  }
+  printf("");
+  
   return 0;
 }
