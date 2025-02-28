@@ -1,7 +1,7 @@
 #pragma once
 
-#define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
 
+#define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
 
 static inline uint32_t ctz_64(uint64_t x) { return (x!=0) ? (uint32_t)__builtin_ctzl(x) : 64; }
 
