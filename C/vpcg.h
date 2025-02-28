@@ -3,7 +3,9 @@
 
 // example customization header for minimum targets w/hw-supported
 // SIMD 64-bit products. This is a custom variant of a PCG
-// which is currently using MIX14 (on all lanes...very sad)
+// which is currently using MIX14 (on all lanes...very sad).
+// The combined generator becomes something like a LMX lite
+// (xorshiro state update replaced with xorshift)
 
 // TODO:
 // * deal with generator pos functions which will be whacked
@@ -23,6 +25,8 @@
 //   (https://marc-b-reynolds.github.io/math/2017/09/12/LCS.html)
 // * I don't think prime factorization is useful but it's cheap to note
 // * I have 6 listed but there's no specific reasoning for the selection or ordering
+// * a happier mixer would be to search for 4 sets of multiplicative constants with
+//   the same shift amounts.
 
 static const u64x4_t vpcg_mul_k = {
   0xd1342543de82ef95,   // 11.1...1..11.1....1..1.1.1....1111.1111.1.....1.111.11111..1.1.1 : 32 18 5*17*1277*2908441*47750621
