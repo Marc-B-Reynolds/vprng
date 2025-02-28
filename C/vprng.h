@@ -147,7 +147,7 @@
   and as 32-bit chucks u_i
 
   ┌─────────┬─────────┬─────────┬─────────┐
-  │    t3   │    t2   │    t2   │    t0   │ t_i
+  │    t3   │    t2   │    t1   │    t0   │ t_i
   ├────┬────┼────┬────┼────┬────┼────┬────┤
   │ u7 │ u6 │ u5 │ u4 │ u3 │ u2 │ u1 │ u0 │ u_i
   └────┴────┴────┴────┴────┴────┴────┴────┘
@@ -269,7 +269,11 @@ typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
 //   questionable at 256gb and fails at 512gb.
 //   see below
 
-#if 0
+#if 1
+// meh..temp hack
+#undef  VPRNG_VERSION_STR
+#define VPRNG_VERSION_STR  "0.0.1a"
+
 static const u32x8_t finalize_m0 =
 {
   0x21f0aaad, // 
@@ -428,8 +432,10 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 //*******************************************************************
 
 //*******************************************************************
-// Additive constant generation.
+// Additive constant generation described in this post:
 // https://marc-b-reynolds.github.io/math/2024/12/11/LCGAddConst.html
+// Most of the comments have been stipped here. One difference is
+// that I've flipped to using 'phi' (comment below)
 //
 // Don't have the exact number of generators produced. The intial window
 // filter produces n = 17842322501232739958 candidates but I haven't
@@ -446,15 +452,20 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 // 64-bit population count
 static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcountl(x); }
 
-static const uint64_t vprng_internal_inc_k  = 0x9e3779b96f4a7897;
-static const uint64_t vprng_internal_inc_i  = 0x2854c7d99c708727;
-
+// differs from post which assumes a strong bit finalizer. Here
+// I'm assuming it might be weak so going with an optimal 1D
+// discrepancy choice.
+//   magic    = frac(phi) = 1/phi = (Sqrt[5]-1)/2
+//   constant = RoundToOdd[2^64*magic]
+static const uint64_t vprng_internal_inc_k  = 0x9e3779b97f4a7c15;
+static const uint64_t vprng_internal_inc_i  = 0xf1de83e19937733d;
 
 static _Atomic uint64_t vprng_internal_inc_id = 1;
 
 void     vprng_global_id_set(uint64_t id) { atomic_store(&vprng_internal_inc_id, id);   }
 uint64_t vprng_global_id_get(void)        { return atomic_load(&vprng_internal_inc_id); }
 
+// returns an additive constant for the state update
 static uint64_t vprng_additive_next(void)
 {
   uint64_t b;
@@ -568,6 +579,17 @@ static uint64_t vprng_modinv(uint64_t a)
   return x;
 }
 
+uint64_t vprng_id_get(vprng_t* prng)
+{
+  // multiply by mod-inverse and nuke the "to odd" transform
+  return (vprng_internal_inc_i*prng->inc[0])>>1;
+}
+
+uint64_t cvprng_id_get(cvprng_t* prng)
+{
+  return vprng_id_get(&prng->base);
+}
+
 // get the current position in the stream
 uint64_t vprng_pos_get(vprng_t* prng)
 {
@@ -588,11 +610,14 @@ void vprng_pos_set(vprng_t* prng, uint64_t pos)
 }
 
 #else
-extern void     vprng_id_set(uint64_t id);
-extern uint64_t vprng_id_get(void);
+extern void     vprng_global_id_set(uint64_t id);
+extern uint64_t vprng_global_id_get(void);
 
-extern void     vprng_init(vprng_t* prng);
+extern void     vprng_init (vprng_t* prng);
 extern void     cvprng_init(cvprng_t* prng);
+
+extern uint64_t vprng_id_get (vprng_t* prng);
+extern uint64_t cvprng_id_get(cvprng_t* prng);
 
 extern uint64_t vprng_pos_get(vprng_t* prng);
 extern void     vprng_pos_set(vprng_t* prng, uint64_t pos);
