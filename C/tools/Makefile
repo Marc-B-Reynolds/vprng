@@ -12,14 +12,15 @@ CFLAGS = -g3 -O3 ${IDIRS} -march=native -Wall -Wextra -Wconversion -Wno-unused-f
 LDLIBS = -lm
 
 FSRC    := ${wildcard *.c}
-SRC     := ${filter-out xorshift.c vprng_testu01.c, ${FSRC}}
-HEADERS := ${wildcard *.h}
-TARGETS := ${SRC:.c=}
+SRC      := ${filter-out xorshift.c vprng_testu01.c, ${FSRC}}
+HEADERS  := ${wildcard *.h}
+TARGETS  := ${SRC:.c=}
+FTARGETS := ${FSRC:.c=}
 
 all:    ${TARGETS}
 
 clean:
-	-${RM} ${TARGETS}
+	-${RM} ${FTARGETS}
 
 distclean:	clean
 	-${RM} .makedep *~
