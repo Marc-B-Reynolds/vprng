@@ -4,6 +4,7 @@
 # except for these:
 !.gitignore
 !*.[ch]
+!*.sh
 !Makefile
 !README.md
 !data
