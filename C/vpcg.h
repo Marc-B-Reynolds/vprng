@@ -6,6 +6,8 @@
 // which is currently using MIX14 (on all lanes...very sad).
 // The combined generator becomes something like a LMX lite
 // (xorshiro state update replaced with xorshift)
+// or like an XorWow with but a "Type I" XorShift instead of
+// multiple state word variant with a bit finalizer added.
 
 // TODO:
 // * deal with generator pos functions which will be whacked
