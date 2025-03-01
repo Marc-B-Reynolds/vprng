@@ -6,7 +6,7 @@
 # stop if a command fails
 # -e : command fails
 # -u : 
-#set -Eeuo pipefail
+set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
 # attempt to change to the directory of this script
@@ -18,6 +18,16 @@ $(basename "${BASH_SOURCE[0]}") [options] {test ids}
 
 helper script for piping data from makedata to PractRand. Mainly to
 simply repeat the same test on a series of different generators.
+
+example: run what I'm considering the standard suite on vprng which
+is 10 repeatable tests (makedata --test-id on [0,9]) with data sizes
+from 2MB to 512GB.
+
+  ./practrand_run.sh 0 1 2 3 4 5 6 7 8 9
+
+The composed command is echoed to the terminal. If PractRand hits
+a clear fail then that run will be stop but remaining runs will
+proceed.
 
 script options:
   -h, --help      print this help and exit
@@ -109,11 +119,18 @@ setup_colors
 # run the test(s)
 for arg in "${args[@]}"; do
     FILE=data/practrand_${PRNG}_${TYPE}_${arg}.txt
+
+    # show the command to be executed in the terminal
     msg "${GREEN}./makedata ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} >> ${FILE} ${NOFORMAT}"  # temp hack
     msg ""
-    
+
+    # also place it at the top of the output file
     echo "./makedata ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED}" >> $FILE
 
+    # and the --dryrun option output as well (info is in stderr. stdout feeds RNG_test)
+    ./makedata ${MOPT} --test-id=${arg} --dryrun 2> $FILE 
+    
+    # run the actual test
     # the "|| true" is needed because there'll be a SIGPIPE (exit code 141)
     ./makedata ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE 
 
