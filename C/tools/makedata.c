@@ -14,7 +14,11 @@
 #include <getopt.h>
 
 #define VPRNG_IMPLEMENTATION
+#ifndef VPRNG_INCLUDE
 #include "vprng.h"
+#else
+#include VPRNG_INCLUDE
+#endif
 
 #define HEADER     "\033[95m"
 #define OKBLUE     "\033[94m"
@@ -95,7 +99,7 @@ u32x8_t buffer[BUFFER_LEN];
 // vprng all 256-bit output
 void spew_all(FILE* file, uint64_t n)
 {
-  test_banner("vprng");
+  test_banner(VPRNG_NAME);
 
   vprng_t prng;
   size_t  t;
@@ -115,7 +119,7 @@ void spew_all(FILE* file, uint64_t n)
 // cvprng all 256-bit output
 void cspew_all(FILE* file, uint64_t n)
 {
-  test_banner("cvprng");
+  test_banner("c" VPRNG_NAME);
 
   cvprng_t prng;
   size_t   t;
@@ -135,7 +139,7 @@ void cspew_all(FILE* file, uint64_t n)
 // vprng: single 32-bit channel 'c' output
 static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2("vprng 32-bit lane:", c);
+  test_banner_2(VPRNG_NAME " 32-bit lane:", c);
 
   uint32_t data[BUFFER_LEN];
   vprng_t prng;
@@ -160,7 +164,7 @@ static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
 // cprng: single 32-bit channel 'c' output
 static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2("cvprng 32-bit lane:", c);
+  test_banner_2("c" VPRNG_NAME " 32-bit lane:", c);
 
   uint32_t data[BUFFER_LEN];
   cvprng_t prng;
@@ -185,7 +189,7 @@ static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
 // vprng: single 64-bit channel 'c' output
 static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2("vprng 64-bit lane:", c);
+  test_banner_2(VPRNG_NAME " 64-bit lane:", c);
 
   uint64_t data[BUFFER_LEN];
   vprng_t  prng;
@@ -210,7 +214,7 @@ static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
 // cvprng: single 64-bit channel 'c' output
 static inline void cspew_channel_64(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2("cvprng 64-bit lane:", c);
+  test_banner_2("c" VPRNG_NAME " 64-bit lane:", c);
 
   uint64_t data[BUFFER_LEN];
   cvprng_t prng;
@@ -261,6 +265,8 @@ void help_options(char* name)
 	 "  --blocks=N   produce N blocks of %u bytes\n"
 	 "  --dryrun     dumps out banner information to stderr\n"
 	 "  --help       \n"
+	 "               \n"
+	 VPRNG_NAME " build " VPRNG_VERSION_STR "\n"
 	 "\n"
 	 "\n", 32*BUFFER_LEN);
 
