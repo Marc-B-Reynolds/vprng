@@ -3,9 +3,10 @@
 # hack of https://betterdev.blog/minimal-safe-bash-script-template
 # because LOL bash scripting. added comments from the post
 
-# stop if a command fails
-# -e : command fails
-# -u : 
+# stop if some things go sideways
+# -e : command return non-zero status
+# -u : undefine bash variable
+# pipefail: if any a list of piped commands have non-zero status
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
@@ -17,7 +18,8 @@ usage() {
 $(basename "${BASH_SOURCE[0]}") [options] {test ids}
 
 helper script for piping data from makedata to PractRand. Mainly to
-simply repeat the same test on a series of different generators.
+simply repeat the same test on a series of different generators
+and to avoid dumb commandline modification mistakes.
 
 example: run what I'm considering the standard suite on vprng which
 is 10 repeatable tests (makedata --test-id on [0,9]) with data sizes
@@ -27,12 +29,16 @@ from 2MB to 512GB.
 
 The composed command is echoed to the terminal. If PractRand hits
 a clear fail then that run will be stop but remaining runs will
-proceed.
+proceed. Each run is written out to the file. Example: 0 is
+written to:
+
+  data/practrand_vprng_all_0.txt
 
 script options:
   -h, --help      print this help and exit
 
 makedata options:
+  --alt name      uses makedata_name where name is 
   --cvprng        cvprng instead of vprng
   --channel [n]   only channel 'n' (disabled)
   --32            32-bit instead of 64-bit channels (disabled)
@@ -75,7 +81,9 @@ PRNG="vprng"
 TYPE="all"
 MOPT=""
 SEED=1
-
+MAKEDATA="makedata"
+FPREFIX="practrand"
+COMBINED=""
 
 parse_params() {
   # default values of variables set from params
@@ -93,11 +101,14 @@ parse_params() {
       shift
       ;;
     --cvprng) MOPT="${MOPT} --cvprng"
-	      PRNG="cvprng" ;;
+	      COMBINED="c" ;;
     --hi) HI="${2-}"
 	  shift ;;
     --lo) LO="${2-}"
 	  shift ;;
+    --alt) ALT="${2-}"
+	  shift ;;
+
     -?*) die "unknown option: $1" ;;
     *) break ;;
     esac
@@ -116,23 +127,82 @@ parse_params() {
 parse_params "$@"
 setup_colors
 
-# run the test(s)
+# hacky auto build the makedata variant if it isn't
+if [[ -v ALT ]]; then
+    MAKEDATA="makedata_${ALT}"
+    PRNG="${ALT}"
+
+  if [ -f "${MAKEDATA}" ] && [ -x "${MAKEDATA}" ]; then
+      : 
+  else
+      msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
+      msg "${YELLOW}NOTE: ${GREEN}${MAKEDATA}${NOFORMAT}: not found so trying ${BOLD}make${NOFORMAT}"
+
+      status=0
+      
+      make ${MAKEDATA} 2> /dev/null || status=$?
+      if [ $status -eq 0 ]; then
+         msg "${YELLOW}success${NOFORMAT}"
+      else
+	 if [ $status -eq 2 ]; then
+           msg "  no make target so trying manually"
+	   status=0  
+  	   CC=$(command -v gcc || command -v clang || echo cc)
+	   ${CC} -DVPRNG_INCLUDE=\"${ALT}.h\" -g3 -O3 -I..  -march=native makedata.c -o ${MAKEDATA} || status=$?
+	 else
+           msg "${YELLOW}status:${status} ${NOFORMAT}"
+	 fi
+      fi
+
+      msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
+  fi
+else
+    : 
+fi
+
+
+# validate parameters are all integers on [0,255] (for test id values)
 for arg in "${args[@]}"; do
-    FILE=data/practrand_${PRNG}_${TYPE}_${arg}.txt
+  if [[ "$arg" =~ ^[0-9]+$ ]] && [ "$arg" -le 255 ]; then
+    continue
+  else
+    die "${RED}error${NOFORMAT}: parameters must be integers on [0,255]  (got: $arg)"
+ fi
+done
+
+# validate RNG_test range options
+if [[ "$HI" =~ ^[0-9]+(|K|M|G|T|P)B?$ ]]; then
+  :
+else
+  die "${RED}error${NOFORMAT}: ${GREEN}--hi${NOFORMAT}  (got: $HI)"
+fi
+
+if [[ "$LO" =~ ^[0-9]+(|K|M|G|T|P)B?$ ]]; then
+  :
+else
+  die "${RED}error${NOFORMAT}: ${GREEN}--lo${NOFORMAT}  (got: $LO)"
+fi
+
+
+# run the test(s)
+FILEBASE="data/${FPREFIX}_${COMBINED}${PRNG}_${TYPE}"
+
+for arg in "${args[@]}"; do
+    FILE="${FILEBASE}_${arg}.txt"
 
     # show the command to be executed in the terminal
-    msg "${GREEN}./makedata ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} >> ${FILE} ${NOFORMAT}"  # temp hack
+    msg "${GREEN}./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} >> ${FILE} ${NOFORMAT}"  # temp hack
     msg ""
 
     # also place it at the top of the output file
-    echo "./makedata ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED}" >> $FILE
+    echo "./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED}" >> $FILE
 
-    # and the --dryrun option output as well (info is in stderr. stdout feeds RNG_test)
-    ./makedata ${MOPT} --test-id=${arg} --dryrun 2> $FILE 
+    # and the --dryrun option output as well (info is in stderr. stdout feeds RNG_test et al.)
+    ./${MAKEDATA} ${MOPT} --test-id=${arg} --dryrun 2> $FILE 
     
     # run the actual test
     # the "|| true" is needed because there'll be a SIGPIPE (exit code 141)
-    ./makedata ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE 
+    ./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE 
 
     msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
 done
