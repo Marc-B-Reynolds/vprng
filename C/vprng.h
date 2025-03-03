@@ -275,16 +275,11 @@ typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
 //   questionable at 256gb and fails at 512gb.
 //   see below
 
-#if 0
-// meh..temp hack
-#undef  VPRNG_VERSION_STR
-#define VPRNG_VERSION_STR  "0.0.1a"
-
 static const u32x8_t finalize_m0 =
 {
   0x21f0aaad, // 
   0x603a32a7,
-  0x21f0aaad, // 
+  0x21f0aaad, // ??
 //0xa812d533, nuked
   0x97219aad,
   0xb237694b,
@@ -297,7 +292,7 @@ static const u32x8_t finalize_m1 =
 {
   0xf35a2d97, // 
   0x5a522677,
-  0xd35a2d97, // 
+  0xd35a2d97, // ??
 //0xb278e4ad, nuked 
   0xab46b735,
   0xeb5b4593,
@@ -306,44 +301,6 @@ static const u32x8_t finalize_m1 =
   0x959b4a4d
 };
 
-#else
-
-// curiouser and curiouser flipping to these
-// repeated finalizer constants is seeing
-// consistently passing up to 512 GB (1) with
-// 'no anomalies'. Moreover they are rather
-// peculiar values. last 2 are pop and string counts
-//                                              
-// 21f0aaad ..1....11111....1.1.1.1.1.1.11.1 : 15 10
-// f35a2d97 1111..11.1.11.1...1.11.11..1.111 : 19 10
-// d35a2d97 11.1..11.1.11.1...1.11.11..1.111 : 18 11
-//
-// 1) the maximum I've been testing
-
-static const u32x8_t finalize_m0 =
-{
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-  0x21f0aaad, // 
-};
-
-static const u32x8_t finalize_m1 =
-{
-  0xf35a2d97, // 
-  0xd35a2d97, // 
-  0xf35a2d97, // 
-  0xd35a2d97, // 
-  0xf35a2d97, // 
-  0xd35a2d97, // 
-  0xf35a2d97, // 
-  0xd35a2d97, // 
-};
-#endif
 
 // 32x8 integer product
 static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
