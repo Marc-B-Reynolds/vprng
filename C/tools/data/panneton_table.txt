@@ -1,4 +1,4 @@
-(a,   b,  c) X1 X2 X3 X5   X3=(I+L^c)(I+R^b)(I+L^a)  {not in doc - all poor}
+(a,   b,  c) X1 X2 X3 X5   X3=(I+L^c)(I+R^b)(I+L^a)  {not in local doc - all poor \delta_1}
 ------------+--+--+--+--+----
 ( 9, 21, 40)  7  4 19  6
 ( 6, 23, 27) 10  6 19  3
