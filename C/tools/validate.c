@@ -140,7 +140,7 @@ void zeroland_info(void)
       seq_stats_t stats;
       seq_stats_init(&stats);
 
-      uint64_t u0 = (1<<p0)-1;
+      uint64_t u0 = (1ull<<p0)-1;
       uint64_t u1;
       uint32_t p1;
       
@@ -184,7 +184,7 @@ int main(void)
   
   for(uint32_t i=0; i<10; i++) {
     vprng_init(&prng);
-    printf("%2lu,", vprng_id_get(&prng));
+    printf("%2llu,", (unsigned long long)vprng_id_get(&prng));
   }
   printf("\n");
 
@@ -192,7 +192,7 @@ int main(void)
 
   for(uint32_t i=0; i<10; i++) {
     vprng_init(&prng);
-    printf("%2lu,", vprng_global_id_get());
+    printf("%2llu,", (unsigned long long)vprng_global_id_get());
   }
   printf("\n");
 
@@ -201,21 +201,21 @@ int main(void)
 
   for(uint32_t i=0; i<10; i++) {
     vprng_init(&prng);
-    printf("%016lx %016lx %016lx %016lx\n", prng.inc[0],prng.inc[1],prng.inc[2],prng.inc[3]);
+    printf("%016llx %016llx %016llx %016llx\n", (unsigned long long)prng.inc[0],(unsigned long long)prng.inc[1],(unsigned long long)prng.inc[2],(unsigned long long)prng.inc[3]);
   }
-  printf("");
+  // printf("");
 
   vprng_global_id_set(1);
 
   for(uint32_t i=0; i<10; i++) {
     vprng_init(&prng);
-    printf("%2lu %2lu %2lu %2lu\n",
-	   (vprng_internal_inc_i*prng.inc[0])>>1,
-	   (vprng_internal_inc_i*prng.inc[1])>>1,
-	   (vprng_internal_inc_i*prng.inc[2])>>1,
-	   (vprng_internal_inc_i*prng.inc[3])>>1);
+    printf("%2llu %2llu %2llu %2llu\n",
+	   (unsigned long long)(vprng_internal_inc_i*prng.inc[0])>>1,
+	   (unsigned long long)(vprng_internal_inc_i*prng.inc[1])>>1,
+	   (unsigned long long)(vprng_internal_inc_i*prng.inc[2])>>1,
+	   (unsigned long long)(vprng_internal_inc_i*prng.inc[3])>>1);
   }
-  printf("");
+  // printf("");
   
   return 0;
 }

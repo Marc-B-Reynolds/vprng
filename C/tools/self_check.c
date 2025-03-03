@@ -67,7 +67,7 @@ bool u64x4_eq(u64x4_t a, u64x4_t b)
 
 void u64x4_print(u64x4_t x)
 {
-  printf("{%016lx,%016lx,%016lx,%016lx}", x[0],x[1],x[2],x[3]);
+  printf("{%016llx,%016llx,%016llx,%016llx}", (unsigned long long)x[0],(unsigned long long)x[1],(unsigned long long)x[2],(unsigned long long)x[3]);
 }
 
 

@@ -450,7 +450,7 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 #include <stdatomic.h>
 
 // 64-bit population count
-static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcountl(x); }
+static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcountll(x); }
 
 // differs from post which assumes a strong bit finalizer. Here
 // I'm assuming it might be weak so going with an optimal 1D

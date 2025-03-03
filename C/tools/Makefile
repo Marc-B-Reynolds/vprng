@@ -8,7 +8,7 @@ ifeq ($(origin CC),default)
 endif
 
 IDIRS  = -I.. 
-CFLAGS = -g3 -O3 ${IDIRS} -march=native -Wall -Wextra -Wconversion -Wno-unused-function -fno-math-errno
+CFLAGS = -g3 -O3 ${IDIRS} -march=native -Wall -Wextra -Wconversion -Wno-unused-function -Wno-empty-body -fno-math-errno
 LDLIBS = -lm
 
 FSRC    := ${wildcard *.c}
