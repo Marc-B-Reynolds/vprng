@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <getopt.h>
+#include <inttypes.h>
 
 #include "util.h"
 #include "unif01.h"
@@ -532,7 +533,7 @@ static double cnext_f64(void* UNUSED p, void* UNUSED s)
 
 static void print_state(void* UNUSED s)
 {
-  //printf("  counter = 0x%016lx\n", data.counter);
+  //printf("  counter = 0x%016" PRIx64 "\n", data.counter);
 }
 
 unif01_Gen gen_v_all = {
@@ -591,10 +592,10 @@ void print_hr_num(uint64_t n)
     if (n >= 1024) { s='M'; n >>= 10; }
     if (n >= 1024) { s='G'; n >>= 10; }
 
-    printf("%lu%c",n,s);
+    printf("%" PRIu64 "%c",n,s);
   }
 
-  printf("%lu", n);
+  printf("%" PRIu64, n);
 }
 
 

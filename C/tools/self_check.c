@@ -4,6 +4,7 @@
 #include <stdalign.h>
 #include <math.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include <x86intrin.h>
 
@@ -12,6 +13,7 @@
 #define VPRNG_IMPLEMENTATION
 #include "vprng.h"
 
+#include "common.h"
 
 #define HEADER     "\033[95m"
 #define OKBLUE     "\033[94m"
@@ -64,12 +66,6 @@ bool u64x4_eq(u64x4_t a, u64x4_t b)
   // sete    al
   return memcmp(&a, &b, sizeof(u64x4_t)) == 0;
 }
-
-void u64x4_print(u64x4_t x)
-{
-  printf("{%016llx,%016llx,%016llx,%016llx}", (unsigned long long)x[0],(unsigned long long)x[1],(unsigned long long)x[2],(unsigned long long)x[3]);
-}
-
 
 u32x8_t mod_inverse_u32x8(u32x8_t a)
 {

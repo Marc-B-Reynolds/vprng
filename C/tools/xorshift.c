@@ -3,13 +3,12 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <m4ri/m4ri_config.h>
 #include <m4ri/m4ri.h>
 
 // create initial state values for the XorShift
 // let the first value of the "sequence" be one then
-
-
 
 #ifndef VPRNG_CVPRNG_HOBBLE_INIT
 #define OFF  (0x6a09e667f3bcc909ULL)
@@ -174,22 +173,22 @@ int main(void)
   mzd_copy(p,m);
   m4ri_pow(p,P0);
   r = get_col_m4ri(p,0);
-  printf("{%016lx, ", r);
+  printf("{%016" PRIx64 ", ", r);
 
   mzd_copy(p,m);
   m4ri_pow(p,P1);
   r = get_col_m4ri(p,0);
-  printf("%016lx, ", r);
+  printf("%016" PRIx64 ", ", r);
 
   mzd_copy(p,m);
   m4ri_pow(p,P2);
   r = get_col_m4ri(p,0);
-  printf("%016lx, ", r);
+  printf("%016" PRIx64 ", ", r);
 
   mzd_copy(p,m);
   m4ri_pow(p,P3);
   r = get_col_m4ri(p,0);
-  printf("%016lx}\n", r);
+  printf("%016" PRIx64 "}\n", r);
 #else
   printf("{");
 
@@ -197,7 +196,7 @@ int main(void)
     mzd_copy(p,m);
     m4ri_pow(p,offsets[i]);
     r = get_col_m4ri(p,0);
-    printf("0x%016lx,", r);
+    printf("0x%016" PRIx64 ",", r);
   }
 
   printf("\b}\n");

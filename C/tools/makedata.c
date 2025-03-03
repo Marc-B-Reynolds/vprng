@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -32,6 +33,7 @@
 
 // true if only dumping informtion about what the run would do
 bool dry_run = false;
+bool cvprng_hobble_state = false;
 
 uint64_t global_id = 1;
 uint64_t test_id   = UINT64_C(-1);
@@ -40,10 +42,10 @@ uint64_t test_id   = UINT64_C(-1);
 // not stdio since that can be consumed by a piped executable
 void test_banner_i(char* str)
 {
-  fprintf(stderr, BOLD "%s" ENDC " (%s) id=%llu", str, VPRNG_VERSION_STR, (unsigned long long)global_id);
+  fprintf(stderr, "%s (%s) id=%" PRIu64, str, VPRNG_VERSION_STR, global_id);
 
   if (test_id != UINT64_C(-1))
-    fprintf(stderr, " (from test-id=%llu) ", (unsigned long long)test_id);
+    fprintf(stderr, " (from test-id=%" PRIu64 ") ", test_id);
 }
 
 
@@ -91,6 +93,17 @@ void print_warning(char* msg)
   fprintf(stderr, WARNING "warning:" ENDC " %s\n", msg);
 }
 
+// move banner junk in here and add any init time hobbling
+void wrap_vprng_init(vprng_t* prng)
+{
+  vprng_init(prng);
+}
+
+void wrap_cvprng_init(cvprng_t* prng)
+{
+  cvprng_init(prng);
+}
+
 
 // number of 256 bit chucks to produce at a time
 #define BUFFER_LEN 1024
@@ -102,12 +115,17 @@ static_assert(sizeof(buffer) == BUFFER_LEN*32, "because mistakes were made");
 // vprng all 256-bit output
 void spew_all(FILE* file, uint64_t n)
 {
-  test_banner(VPRNG_NAME);
-
   vprng_t prng;
   size_t  t;
 
-  vprng_init(&prng);
+  wrap_vprng_init(&prng);
+  test_banner(VPRNG_NAME);
+  fprintf(stderr,
+	  "{%016" PRIx64
+	  ",%016" PRIx64
+	  ",%016" PRIx64
+	  ",%016" PRIx64
+	  "}\n", prng.inc[0],prng.inc[1],prng.inc[2],prng.inc[3]);
 
   // note: it's on purpose with "n=0" is to run until killed (ditto other loops)
   while(--n) {
@@ -123,12 +141,11 @@ void spew_all(FILE* file, uint64_t n)
 // cvprng all 256-bit output
 void cspew_all(FILE* file, uint64_t n)
 {
-  test_banner("c" VPRNG_NAME);
-
   cvprng_t prng;
   size_t   t;
 
-  cvprng_init(&prng);
+  wrap_cvprng_init(&prng);
+  test_banner("c" VPRNG_NAME);
 
   while(--n) {
     cvprng_block_fill_u32(BUFFER_LEN, buffer, &prng);
@@ -143,15 +160,14 @@ void cspew_all(FILE* file, uint64_t n)
 // vprng: single 32-bit channel 'c' output
 static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2(VPRNG_NAME " 32-bit lane:", c);
-
   uint32_t data[BUFFER_LEN];
   vprng_t prng;
   size_t  t;
 
   static_assert(sizeof(data) == BUFFER_LEN*4, "because mistakes were made");
   
-  vprng_init(&prng);
+  wrap_vprng_init(&prng);
+  test_banner_2(VPRNG_NAME " 32-bit lane:", c);
 
   while(--n) {
     for(uint32_t i=0; i<BUFFER_LEN; i++) {
@@ -170,13 +186,12 @@ static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
 // cprng: single 32-bit channel 'c' output
 static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2("c" VPRNG_NAME " 32-bit lane:", c);
-
   uint32_t data[BUFFER_LEN];
   cvprng_t prng;
   size_t   t;
 
-  cvprng_init(&prng);
+  wrap_cvprng_init(&prng);
+  test_banner_2("c" VPRNG_NAME " 32-bit lane:", c);
 
   while(--n) {
     for(uint32_t i=0; i<BUFFER_LEN; i++) {
@@ -195,15 +210,14 @@ static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
 // vprng: single 64-bit channel 'c' output
 static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2(VPRNG_NAME " 64-bit lane:", c);
-
   uint64_t data[BUFFER_LEN];
   vprng_t  prng;
   size_t   t;
 
   static_assert(sizeof(data) == BUFFER_LEN*8, "because mistakes were made");
   
-  vprng_init(&prng);
+  wrap_vprng_init(&prng);
+  test_banner_2(VPRNG_NAME " 64-bit lane:", c);
 
   while(--n) {
     for(uint32_t i=0; i<BUFFER_LEN; i++) {
@@ -222,13 +236,12 @@ static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
 // cvprng: single 64-bit channel 'c' output
 static inline void cspew_channel_64(FILE* file, uint64_t n, uint32_t c)
 {
-  test_banner_2("c" VPRNG_NAME " 64-bit lane:", c);
-
   uint64_t data[BUFFER_LEN];
   cvprng_t prng;
   size_t   t;
 
-  cvprng_init(&prng);
+  wrap_cvprng_init(&prng);
+  test_banner_2("c" VPRNG_NAME " 64-bit lane:", c);
 
   while(--n) {
     for(uint32_t i=0; i<BUFFER_LEN; i++) {

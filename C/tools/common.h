@@ -1,6 +1,7 @@
 #pragma once
 
 #include <assert.h>
+#include <inttypes.h>
 
 #define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
 
@@ -54,3 +55,13 @@ static inline void seq_stats_print(seq_stats_t* d)
 	 d->min, d->max
 	 );
 }
+
+void u64x4_print(u64x4_t x)
+{
+  printf("{%016" PRIx64
+	 ",%016" PRIx64
+	 ",%016" PRIx64
+	 ",%016" PRIx64
+	 "}", x[0],x[1],x[2],x[3]);
+}
+
