@@ -97,6 +97,7 @@ f_def_t xorshift_table[] = {
   {.name="x1(11, 5,32)", .f=xorshift_9 },
   {.name="x2(11, 5,32)", .f=xorshift_a },
 #elif 1
+  {.name="x1(11, 5,32)", .f=xorshift_b0 },
 #else  
   {.name="x1(11, 5,32)", .f=xorshift_b0 },
   {.name="x2(11, 5,32)", .f=xorshift_b1 },
@@ -140,7 +141,7 @@ void zeroland_info(void)
       seq_stats_t stats;
       seq_stats_init(&stats);
 
-      uint64_t u0 = (1<<p0)-1;
+      uint64_t u0 = (1UL<<p0)-1;
       uint64_t u1;
       uint32_t p1;
       
