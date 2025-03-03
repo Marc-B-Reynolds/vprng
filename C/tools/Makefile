@@ -17,6 +17,20 @@ HEADERS  := ${wildcard *.h}
 TARGETS  := ${SRC:.c=}
 FTARGETS := ${FSRC:.c=}
 
+# OS detection.
+ifeq ($(OS),Windows_NT)
+# Default to GCC on Windows (presumably MinGW).
+  CC         = gcc
+# Force the .exe suffix so that Makefile looks at the correct
+# target when deciding what to rebuild.
+  EXESUFFIX := .exe
+  TARGETS   := $(addsuffix $(EXESUFFIX),$(TARGETS))
+  FTARGETS  := $(addsuffix $(EXESUFFIX),$(FTARGETS))
+# Force static linkning so that binary doesn't require
+# MinGW's DLLs to run.
+  LDFLAGS   += -static
+endif
+
 all:    ${TARGETS}
 
 clean:
@@ -43,7 +57,7 @@ vprng_testu01:vprng_testu01.c
 xorshift:xorshift.c
 	${CC} ${CFLAGS} $< -o $@ ${LDLIBS} -lm4ri
 
-%:%.c	Makefile
-	${CC} ${CFLAGS} $< -o $@ ${LDLIBS}
+%$(EXESUFFIX):%.c	Makefile
+	${CC} ${CFLAGS} $< -o $@ ${LDFLAGS} ${LDLIBS}
 
 -include .makedep
