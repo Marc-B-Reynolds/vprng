@@ -127,7 +127,7 @@ parse_params() {
 parse_params "$@"
 setup_colors
 
-# hacky auto build the makedata variant if it isn't
+# hacky auto build the makedata variant if it isn't compiled
 if [[ -v ALT ]]; then
     MAKEDATA="makedata_${ALT}"
     PRNG="${ALT}"
@@ -150,7 +150,7 @@ if [[ -v ALT ]]; then
   	   CC=$(command -v gcc || command -v clang || echo cc)
 	   ${CC} -DVPRNG_INCLUDE=\"${ALT}.h\" -g3 -O3 -I..  -march=native makedata.c -o ${MAKEDATA} || status=$?
 	 else
-           msg "${YELLOW}status:${status} ${NOFORMAT}"
+           die "${RED}error${NOFORMAT}: make failed"
 	 fi
       fi
 
