@@ -251,14 +251,19 @@ static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); r
 #if defined(VPRNG_ENABLE_BARRIER)
 #define vprng_result_barrier(v1,v2) do asm ("" : "+x" (v1), "+x"(v2)); while(0)
 #else
-#define vprng_result_barrier(v1,v2) do ; while(0)
+#define vprng_result_barrier(v1,v2) do {} while(0)
 #endif
 
 
 //*******************************************************************
 // core of the PRNGs defined here
 
+#if !defined(VPRNG_HIGHLANDER)
 typedef struct { u64x4_t state; u64x4_t inc; } vprng_t;
+#else
+typedef struct { u64x4_t state; } vprng_t;
+#endif
+
 typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
 
 // the finalizer parameters could be refined
@@ -269,7 +274,7 @@ typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
 //   questionable at 256gb and fails at 512gb.
 //   see below
 
-#if 1
+#if 0
 // meh..temp hack
 #undef  VPRNG_VERSION_STR
 #define VPRNG_VERSION_STR  "0.0.1a"
@@ -457,6 +462,7 @@ static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcou
 // discrepancy choice.
 //   magic    = frac(phi) = 1/phi = (Sqrt[5]-1)/2
 //   constant = RoundToOdd[2^64*magic]
+// and its mod inverse:
 static const uint64_t vprng_internal_inc_k  = 0x9e3779b97f4a7c15;
 static const uint64_t vprng_internal_inc_i  = 0xf1de83e19937733d;
 
@@ -526,21 +532,19 @@ void cvprng_init(cvprng_t* prng)
   // that all four are in 'zeroland' at the same time.
 
   // {x_p0,x_p1,x_p2,x_p3}
-#ifndef VPRNG_CVPRNG_HOBBLE_INIT
   static const u64x4_t k = {0x55a07167039ee1bb,  // p0 = 0*2^62 + off
 			    0x2078e461244b6d4b,  // p1 = 1*2^62 + off + 31
 			    0xfb187856a5f450ff,  // p2 = 2*2^62 + off + 257
 			    0x7f6efb9bf3fc45e1}; // p3 = 2*2^62 + off + 541
-#else
-  // broken choices for statistical testing: {x_0,x_1,x_2,x_3}
-  // for higher confidence levels if passes tests
-  static const u64x4_t k = {0x1,0x81,0x4021,0x204089};
-#endif
 
   vprng_init(&(prng->base));
   prng->f2 = k;  
 }
 
+// only used for testing
+// broken choices for statistical testing: {x_0,x_1,x_2,x_3}
+// for higher confidence levels if passes tests
+static const u64x4_t cvprng_hobble_init_k = {0x1,0x81,0x4021,0x204089};
 
 #else
 
@@ -551,20 +555,30 @@ void cvprng_init(cvprng_t* prng)
 void cvprng_init(cvprng_t* prng)
 {
   // otherwise comments follow that of the 2 term
-#ifndef VPRNG_CVPRNG_HOBBLE_INIT
+
   static const u64x4_t k = {0xc5da252a1302a152,
 			    0x7a888ce4d7ff17cc,
 			    0xf3e14609aa2f25ea,
 			    0x1af45fbbbc2fa67f};
-#else
-  static const u64x4_t k = {0x1,0x81200000409,0x4800000024100049,0xc1220c9344d90601};
-#endif
+
   
   vprng_init(&(prng->base));
   prng->f2 = k;  
 }
 
+// only used for testing
+// broken choices for statistical testing: {x_0,x_1,x_2,x_3}
+// for higher confidence levels if passes tests
+static const u64x4_t cvprng_hobble_init_k =
+{
+  0x1,
+  0x81200000409,
+  0x4800000024100049,
+  0xc1220c9344d90601
+};
 #endif
+
+
 
 // mod-inverse of 64-bit integer
 static uint64_t vprng_modinv(uint64_t a)
