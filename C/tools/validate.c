@@ -141,7 +141,6 @@ void zeroland_info(void)
       seq_stats_t stats;
       seq_stats_init(&stats);
 
-
       uint64_t u0 = (UINT64_C(1)<<p0)-1;
       uint64_t u1;
       uint32_t p1;
