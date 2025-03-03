@@ -279,7 +279,7 @@ int main(int argc, char** argv)
   uint32_t blocks       = 0;
   uint32_t param_errors = 0;
   FILE *   file         = stdout;
-  
+
   static struct option long_options[] = {
     {"32",         no_argument,       0, 'w'},
     {"id",         required_argument, 0, 'g'},
