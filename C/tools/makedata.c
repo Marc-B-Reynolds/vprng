@@ -106,10 +106,11 @@ void spew_all(FILE* file, uint64_t n)
 
   vprng_init(&prng);
 
+  // note: it's on purpose with "n=0" is to run until killed (ditto other loops)
   while(--n) {
     vprng_block_fill_u32(BUFFER_LEN, buffer, &prng);
-    t = fwrite(buffer, 1, BUFFER_LEN, file);
-    if (t == BUFFER_LEN) continue;
+    t = fwrite(buffer, 1, sizeof(buffer), file);
+    if (t == sizeof(buffer)) continue;
     
     fprintf(stderr, "oh no!");
     break;
@@ -128,8 +129,8 @@ void cspew_all(FILE* file, uint64_t n)
 
   while(--n) {
     cvprng_block_fill_u32(BUFFER_LEN, buffer, &prng);
-    t = fwrite(buffer, 1, BUFFER_LEN, file);
-    if (t == BUFFER_LEN) continue;
+    t = fwrite(buffer, 1, sizeof(buffer), file);
+    if (t == sizeof(buffer)) continue;
     
     fprintf(stderr, "oh no!");
     break;
@@ -153,8 +154,8 @@ static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
       data[i] = r[c];
     }
     
-    t = fwrite(data, 1, BUFFER_LEN, file);
-    if (t == BUFFER_LEN) continue;
+    t = fwrite(data, 1, sizeof(data), file);
+    if (t == sizeof(data)) continue;
     
     fprintf(stderr, "oh no!");
     break;
@@ -178,8 +179,8 @@ static inline void cspew_channel_32(FILE* file, uint64_t n, uint32_t c)
       data[i] = r[c];
     }
     
-    t = fwrite(data, 1, BUFFER_LEN, file);
-    if (t == BUFFER_LEN) continue;
+    t = fwrite(data, 1, sizeof(data), file);
+    if (t == sizeof(data)) continue;
     
     fprintf(stderr, "oh no!");
     break;
@@ -203,8 +204,8 @@ static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
       data[i] = r[c];
     }
     
-    t = fwrite(data, 1, BUFFER_LEN, file);
-    if (t == BUFFER_LEN) continue;
+    t = fwrite(data, 1, sizeof(data), file);
+    if (t == sizeof(data)) continue;
     
     fprintf(stderr, "oh no!");
     break;
@@ -228,8 +229,8 @@ static inline void cspew_channel_64(FILE* file, uint64_t n, uint32_t c)
       data[i] = r[c];
     }
     
-    t = fwrite(data, 1, BUFFER_LEN, file);
-    if (t == BUFFER_LEN) continue;
+    t = fwrite(data, 1, sizeof(data), file);
+    if (t == sizeof(data)) continue;
     
     fprintf(stderr, "oh no!");
     break;
@@ -377,6 +378,9 @@ int main(int argc, char** argv)
 
     // 
     vprng_global_id_set(global_id);
+
+    // TEMP HACK
+    if (blocks) blocks++;
     
     switch(mode) {
 

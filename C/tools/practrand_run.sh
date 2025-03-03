@@ -146,8 +146,13 @@ if [[ -v ALT ]]; then
       else
 	 if [ $status -eq 2 ]; then
            msg "  no make target so trying manually"
-	   status=0  
-  	   CC=$(command -v gcc || command -v clang || echo cc)
+	   status=0
+
+	   # use CC or first of {gcc,clang,cc}  (+x thing is -u hack)
+	   if [ -z "${CC+x}" ]; then
+  	     CC=$(command -v gcc || command -v clang || echo cc)
+	   fi
+
 	   ${CC} -DVPRNG_INCLUDE=\"${ALT}.h\" -g3 -O3 -I..  -march=native makedata.c -o ${MAKEDATA} || status=$?
 	 else
            die "${RED}error${NOFORMAT}: make failed"

@@ -1,11 +1,14 @@
 #pragma once
 
+#include <assert.h>
 
 #define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
 
-static inline uint32_t ctz_64(uint64_t x) { return (x!=0) ? (uint32_t)__builtin_ctzll(x) : 64; }
+static_assert(sizeof(long long int) == 8, "fixup: {ctz,pop}_64");
 
+static inline uint32_t ctz_64(uint64_t x) { return (x!=0) ? (uint32_t)__builtin_ctzll(x) : 64; }
 static inline uint32_t pop_64(uint64_t x) { return (uint32_t)__builtin_popcountll(x);  }
+
 static inline uint32_t pop_32(uint32_t x) { return (uint32_t)__builtin_popcount(x);  }
 static inline uint32_t bit_run_count_32(uint32_t x) { return pop_32(x & (x^(x>>1))); }
 static inline uint32_t bit_run_count_64(uint64_t x) { return pop_64(x & (x^(x>>1))); }

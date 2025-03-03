@@ -81,6 +81,12 @@ u32x8_t mod_inverse_u32x8(u32x8_t a)
   return x;
 }
 
+// with constant 'n' these expand to the minimal number of steps.
+// (not here but if speed was important then these can be
+//  reworked into precomputing a carryless mod-inverse of '2^n+1'
+//  and application becomes a carryless product of that and 'x'
+//  SEE: {cl,cr}_mod_inv_64 and {cl,cr}_mul_64 in
+//  https://github.com/Marc-B-Reynolds/Stand-alone-junk/blob/master/src/SFH/carryless.h
 static inline u64x4_t rxorshift_inv_64x4(u64x4_t x, uint32_t n)
 {
   while(n < 64) { x ^= x >> n; n += n; } return x;

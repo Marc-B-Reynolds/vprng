@@ -146,7 +146,6 @@ void zeroland_info(void)
       uint32_t p1;
       
       do {
-	
 	uint32_t et = 1;
 
 	u1 = f(u0);
