@@ -12,7 +12,7 @@ int main(void)
   
   // we have a sequence of random number generators this chooses where
   // we are in that sequence. should be called at application start up
-  vprng_id_set(1);
+  vprng_global_id_set(1);
 
   vprng_init(&vprng0);
   printf("%lu\n", vprng_id_get());
