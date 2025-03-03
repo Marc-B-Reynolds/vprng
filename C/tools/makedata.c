@@ -7,6 +7,7 @@
 #include <wchar.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -96,6 +97,8 @@ void print_warning(char* msg)
 
 u32x8_t buffer[BUFFER_LEN];
 
+static_assert(sizeof(buffer) == BUFFER_LEN*32, "because mistakes were made");
+
 // vprng all 256-bit output
 void spew_all(FILE* file, uint64_t n)
 {
@@ -146,6 +149,8 @@ static inline void spew_channel_32(FILE* file, uint64_t n, uint32_t c)
   vprng_t prng;
   size_t  t;
 
+  static_assert(sizeof(data) == BUFFER_LEN*4, "because mistakes were made");
+  
   vprng_init(&prng);
 
   while(--n) {
@@ -196,6 +201,8 @@ static inline void spew_channel_64(FILE* file, uint64_t n, uint32_t c)
   vprng_t  prng;
   size_t   t;
 
+  static_assert(sizeof(data) == BUFFER_LEN*8, "because mistakes were made");
+  
   vprng_init(&prng);
 
   while(--n) {
