@@ -39,10 +39,10 @@ uint64_t test_id   = UINT64_C(-1);
 // not stdio since that can be consumed by a piped executable
 void test_banner_i(char* str)
 {
-  fprintf(stderr, BOLD "%s" ENDC " (%s) id=%lu", str, VPRNG_VERSION_STR, global_id);
+  fprintf(stderr, BOLD "%s" ENDC " (%s) id=%llu", str, VPRNG_VERSION_STR, (unsigned long long)global_id);
 
   if (test_id != UINT64_C(-1))
-    fprintf(stderr, " (from test-id=%lu) ", test_id);
+    fprintf(stderr, " (from test-id=%llu) ", (unsigned long long)test_id);
 }
 
 
@@ -293,7 +293,16 @@ int main(int argc, char** argv)
   };
 
   uint32_t channel = 0;
-  
+
+  // Make stdout binary on Windows (only tested in MinGW).
+  // NOTE: freopen(NULL, "wb", stdout); suggested
+  // in https://www.pcg-random.org/posts/how-to-test-with-practrand.html
+  // doesn't seem to work, at least on some machines.
+#if defined(_WIN32)
+  // if(_setmode(_fileno(stdin ), _O_BINARY)==-1) {fprintf(stderr, "ERROR: _setmode() on stdin failed!\n"); fflush(stderr);}
+  if(_setmode(_fileno(stdout), _O_BINARY)==-1) {fprintf(stderr, "ERROR: _setmode() on stdout failed!\n"); fflush(stderr);}
+#endif
+
   while (1) {
     int option_index = 0;
     int c = getopt_long(argc, argv, "", long_options, &option_index);

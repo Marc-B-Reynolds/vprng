@@ -8,7 +8,7 @@ ifeq ($(origin CC),default)
 endif
 
 IDIRS  = -I.. 
-CFLAGS = -g3 -O3 ${IDIRS} -march=native -Wall -Wextra -Wconversion -Wno-unused-function -fno-math-errno
+CFLAGS = -g3 -O3 ${IDIRS} -march=native -Wall -Wextra -Wconversion -Wno-unused-function -Wno-empty-body -fno-math-errno
 LDLIBS = -lm
 
 FSRC    := ${wildcard *.c}
@@ -16,6 +16,20 @@ SRC      := ${filter-out xorshift.c vprng_testu01.c, ${FSRC}}
 HEADERS  := ${wildcard *.h}
 TARGETS  := ${SRC:.c=}
 FTARGETS := ${FSRC:.c=}
+
+# OS detection.
+ifeq ($(OS),Windows_NT)
+# Default to GCC on Windows (presumably MinGW).
+  CC         = gcc
+# Force the .exe suffix so that Makefile looks at the correct
+# target when deciding what to rebuild.
+  EXESUFFIX := .exe
+  TARGETS   := $(addsuffix $(EXESUFFIX),$(TARGETS))
+  FTARGETS  := $(addsuffix $(EXESUFFIX),$(FTARGETS))
+# Force static linkning so that binary doesn't require
+# MinGW's DLLs to run.
+  LDFLAGS   += -static
+endif
 
 all:    ${TARGETS}
 
@@ -43,7 +57,7 @@ vprng_testu01:vprng_testu01.c
 xorshift:xorshift.c
 	${CC} ${CFLAGS} $< -o $@ ${LDLIBS} -lm4ri
 
-%:%.c	Makefile
-	${CC} ${CFLAGS} $< -o $@ ${LDLIBS}
+%$(EXESUFFIX):%.c	Makefile
+	${CC} ${CFLAGS} $< -o $@ ${LDFLAGS} ${LDLIBS}
 
 -include .makedep
