@@ -18,9 +18,13 @@ const bool time_cycles = true;
 
 
 #define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
-#define VPRNG_IMPLEMENTATION
-#include "vprng.h"
 
+#define VPRNG_IMPLEMENTATION
+#ifndef VPRNG_INCLUDE
+#include "vprng.h"
+#else
+#include VPRNG_INCLUDE
+#endif
 
 #define HEADER     "\033[95m"
 #define OKBLUE     "\033[94m"
