@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
+#include <assert.h>
 
 /*
   ──────────────────────────────────────────────────────────────
@@ -455,7 +456,10 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 #include <stdatomic.h>
 
 // 64-bit population count
+static_assert(sizeof(long long int) == 8, "fixup vprng_pop");
+
 static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcountll(x); }
+
 
 // differs from post which assumes a strong bit finalizer. Here
 // I'm assuming it might be weak so going with an optimal 1D
@@ -463,8 +467,8 @@ static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcou
 //   magic    = frac(phi) = 1/phi = (Sqrt[5]-1)/2
 //   constant = RoundToOdd[2^64*magic]
 // and its mod inverse:
-static const uint64_t vprng_internal_inc_k  = 0x9e3779b97f4a7c15;
-static const uint64_t vprng_internal_inc_i  = 0xf1de83e19937733d;
+static const uint64_t vprng_internal_inc_k  = UINT64_C(0x9e3779b97f4a7c15);
+static const uint64_t vprng_internal_inc_i  = UINT64_C(0xf1de83e19937733d);
 
 static _Atomic uint64_t vprng_internal_inc_id = 1;
 
@@ -532,10 +536,10 @@ void cvprng_init(cvprng_t* prng)
   // that all four are in 'zeroland' at the same time.
 
   // {x_p0,x_p1,x_p2,x_p3}
-  static const u64x4_t k = {0x55a07167039ee1bb,  // p0 = 0*2^62 + off
-			    0x2078e461244b6d4b,  // p1 = 1*2^62 + off + 31
-			    0xfb187856a5f450ff,  // p2 = 2*2^62 + off + 257
-			    0x7f6efb9bf3fc45e1}; // p3 = 2*2^62 + off + 541
+  static const u64x4_t k = {UINT64_C(0x55a07167039ee1bb),  // p0 = 0*2^62 + off
+			    UINT64_C(0x2078e461244b6d4b),  // p1 = 1*2^62 + off + 31
+			    UINT64_C(0xfb187856a5f450ff),  // p2 = 2*2^62 + off + 257
+			    UINT64_C(0x7f6efb9bf3fc45e1)}; // p3 = 2*2^62 + off + 541
 
   vprng_init(&(prng->base));
   prng->f2 = k;  
@@ -544,7 +548,13 @@ void cvprng_init(cvprng_t* prng)
 // only used for testing
 // broken choices for statistical testing: {x_0,x_1,x_2,x_3}
 // for higher confidence levels if passes tests
-static const u64x4_t cvprng_hobble_init_k = {0x1,0x81,0x4021,0x204089};
+static const u64x4_t cvprng_hobble_init_k =
+{
+  UINT64_C(0x1),
+  UINT64_C(0x81),
+  UINT64_C(0x4021),
+  UINT64_C(0x204089)
+};
 
 #else
 
@@ -556,10 +566,10 @@ void cvprng_init(cvprng_t* prng)
 {
   // otherwise comments follow that of the 2 term
 
-  static const u64x4_t k = {0xc5da252a1302a152,
-			    0x7a888ce4d7ff17cc,
-			    0xf3e14609aa2f25ea,
-			    0x1af45fbbbc2fa67f};
+  static const u64x4_t k = {UINT64_C(0xc5da252a1302a152),
+			    UINT64_C(0x7a888ce4d7ff17cc),
+			    UINT64_C(0xf3e14609aa2f25ea),
+			    UINT64_C(0x1af45fbbbc2fa67f)};
 
   
   vprng_init(&(prng->base));
@@ -571,10 +581,10 @@ void cvprng_init(cvprng_t* prng)
 // for higher confidence levels if passes tests
 static const u64x4_t cvprng_hobble_init_k =
 {
-  0x1,
-  0x81200000409,
-  0x4800000024100049,
-  0xc1220c9344d90601
+  UINT64_C(0x1),
+  UINT64_C(0x81200000409),
+  UINT64_C(0x4800000024100049),
+  UINT64_C(0xc1220c9344d90601)
 };
 #endif
 
@@ -699,7 +709,7 @@ static inline f64x4_t vprng_f64x4_i(u64x4_t u)
 #elif (VPRNG_CVT_F64_METHOD == 1)
   return 0x1.0p-53 * __builtin_convertvector(u, f64x4_t);
 #elif (VPRNG_CVT_F64_METHOD == 2)
-  f64x4_t d = vprng_cast_f64(u | 0x3ff0000000000000);
+  f64x4_t d = vprng_cast_f64(u | UINT64_C(0x3ff0000000000000));
 
   return vprng_splat_fma(0x1.0p-53, d, -1.0);
 #else
