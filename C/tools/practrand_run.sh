@@ -38,7 +38,8 @@ script options:
   -h, --help      print this help and exit
 
 makedata options:
-  --alt name      uses makedata_name where name is 
+  --alt name      uses makedata_name where name is variant defined
+                  by "name.h". 
   --cvprng        cvprng instead of vprng
   --channel [n]   only channel 'n' (disabled)
   --32            32-bit instead of 64-bit channels (disabled)
@@ -207,7 +208,7 @@ for arg in "${args[@]}"; do
     
     # run the actual test
     # the "|| true" is needed because there'll be a SIGPIPE (exit code 141)
-    ./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE 
+    ./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE || true
 
     msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
 done
