@@ -11,7 +11,7 @@ IDIRS  = -I..
 CFLAGS = -g3 -O3 ${IDIRS} -march=native -Wall -Wextra -Wconversion -Wno-unused-function -Wno-empty-body -fno-math-errno
 LDLIBS = -lm
 
-FSRC    := ${wildcard *.c}
+FSRC     := ${wildcard *.c}
 SRC      := ${filter-out xorshift.c vprng_testu01.c, ${FSRC}}
 HEADERS  := ${wildcard *.h}
 TARGETS  := ${SRC:.c=}

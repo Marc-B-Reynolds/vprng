@@ -175,9 +175,9 @@
 
 #define VPRNG_STRINGIFY_EX(X) #X
 #define VPRNG_STRINGIFY(X) VPRNG_STRINGIFY_EX(X)
-#define VPRNG_VERSION_STR VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
-                          VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
-                          VPRNG_STRINGIFY(VPRNG_VERSION_REVISION)
+#define VPRNG_VERSION_STR  VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
+                           VPRNG_STRINGIFY(VPRNG_VERSION_MAJOR) "." \
+                           VPRNG_STRINGIFY(VPRNG_VERSION_REVISION)
 
 
 #ifndef VPRNG_NAME
@@ -312,7 +312,7 @@ static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
 #if !defined(VPRNG_MIX_EXTERNAL)
 static inline u32x8_t vprng_mix(u64x4_t x)
 {
-  x ^= x >> 33; 
+  x ^= x >> 33;
   
   x ^= x >> 16; x = vprng_mix_mul(x,finalize_m0);
   x ^= x << 15; x = vprng_mix_mul(x,finalize_m1);
@@ -360,6 +360,23 @@ static inline u64x4_t cvprng_state_up(u64x4_t s)
 static inline u64x4_t cvprng_state_up(u64x4_t s);
 #endif
 
+// 
+#if !defined(VPRNG_HIGHLANDER)
+static inline u64x4_t vprng_inc (vprng_t*  prng) { return prng->inc; }
+static inline u64x4_t cvprng_inc(cvprng_t* prng) { return prng->base.inc; }
+#else
+// temp hack first pass (partly for testing)
+static const u64x4_t vprng_state_inc =
+{
+  UINT64_C(0x62f8ab0b61cf22c3),
+  UINT64_C(0x9e3779b97f4a7c15),
+  UINT64_C(0x95f619980c4336f7),
+  UINT64_C(0x5dfe35e13df556d7),
+};
+
+static inline u64x4_t vprng_inc (vprng_t*  __attribute__((unused)) prng) { return vprng_state_inc; }
+static inline u64x4_t cvprng_inc(cvprng_t* __attribute__((unused)) prng) { return vprng_state_inc; }
+#endif
 
 // core base generator
 static inline u32x8_t vprng_u32x8(vprng_t* prng)
@@ -369,7 +386,7 @@ static inline u32x8_t vprng_u32x8(vprng_t* prng)
 
   vprng_result_barrier(r,s);
   
-  prng->state = vprng_state_up(s,prng->inc);
+  prng->state = vprng_state_up(s, vprng_inc(prng));
     
   return r;
 }
@@ -383,7 +400,7 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 
   vprng_result_barrier(r,s1);
 
-  prng->base.state = vprng_state_up (s0, prng->base.inc);
+  prng->base.state = vprng_state_up (s0, cvprng_inc(prng));
   prng->f2         = cvprng_state_up(s1);
   
   return r;
@@ -432,6 +449,8 @@ static _Atomic uint64_t vprng_internal_inc_id = 1;
 void     vprng_global_id_set(uint64_t id) { atomic_store(&vprng_internal_inc_id, id);   }
 uint64_t vprng_global_id_get(void)        { return atomic_load(&vprng_internal_inc_id); }
 
+//#warning "testing vprng_addtive_next hack in progress"
+
 // returns an additive constant for the state update
 static uint64_t vprng_additive_next(void)
 {
@@ -449,6 +468,10 @@ static uint64_t vprng_additive_next(void)
     uint32_t pop = vprng_pop(b);
     uint32_t t   = pop - (32-8);
 
+    // temp hack to get a feel if this is useful with weak finalizer
+    // not clear ATM.
+    //if ((b >> (64-2)) == 0) continue;
+
     if (t <= 2*8) {
       uint32_t str = vprng_pop(b & (b ^ (b >> 1)));
       if (str >= (pop >> 2)) return b;
@@ -462,17 +485,21 @@ static uint64_t vprng_additive_next(void)
 // initialize position in stream to zero
 static inline void vprng_pos_init(vprng_t* prng)
 {
-  prng->state    = prng->inc >> 1;
-  prng->state[0] = prng->inc[0];
+  u64x4_t v = vprng_inc(prng);
+
+  prng->state    = v >> 1;
+  prng->state[0] = v[0];
 }
 
 // initializes the generator to the next set of additive constants.
 void vprng_init(vprng_t* prng)
 {
+#if !defined(VPRNG_HIGHLANDER)  
   prng->inc[0]  = vprng_additive_next();
   prng->inc[1]  = vprng_additive_next();
   prng->inc[2]  = vprng_additive_next();
   prng->inc[3]  = vprng_additive_next();
+#endif  
 
   vprng_pos_init(prng);
 }
@@ -490,7 +517,8 @@ void cvprng_init(cvprng_t* prng)
   //   off = RoundToOdd[Floor[2^64 Sqrt[2]]] = 0x6a09e667f3bcc908
   // just not to start at 0 and then each is further offset by
   // a smallish prime which is intended to lower the chances
-  // that all four are in 'zeroland' at the same time.
+  // that all four are in 'zeroland' at the same time. Zeroland
+  // doesn't look to be a problem however (see doc)
 
   // {x_p0,x_p1,x_p2,x_p3}
   static const u64x4_t k = {UINT64_C(0x55a07167039ee1bb),  // p0 = 0*2^62 + off
@@ -560,6 +588,8 @@ static uint64_t vprng_modinv(uint64_t a)
   return x;
 }
 
+#if !defined(VPRNG_HIGHLANDER)  
+
 uint64_t vprng_id_get(vprng_t* prng)
 {
   // multiply by mod-inverse and nuke the "to odd" transform
@@ -577,10 +607,24 @@ uint64_t vprng_pos_get(vprng_t* prng)
   return prng->state[0] * vprng_modinv(prng->inc[0]) - 1;
 }
 
+#else
+
+uint64_t vprng_id_get (vprng_t*  __attribute__((unused)) prng) { return 0; }
+uint64_t cvprng_id_get(cvprng_t* __attribute__((unused)) prng) { return 0; }
+
+uint64_t vprng_pos_get(vprng_t* prng)
+{
+  // temp hack: no need to compute modinv
+  return prng->state[0] * vprng_modinv(vprng_inc(prng)[0]) - 1;
+}
+
+#endif
+
+
 // moves position in stream by 'off'
 void vprng_pos_inc(vprng_t* prng, uint64_t off)
 {
-  prng->state += prng->inc * off;
+  prng->state += vprng_inc(prng) * off;
 }
 
 // set the stream to position 'pos'

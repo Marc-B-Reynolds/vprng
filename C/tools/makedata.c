@@ -49,11 +49,21 @@ void test_banner_i(char* str)
 }
 
 
-void test_banner(char* str)
+void test_banner(char* str, vprng_t* prng)
 {
   test_banner_i(str);
   fprintf(stderr, "\n");
 
+  u64x4_t inc = vprng_inc(prng);
+  
+  // temp hack
+  fprintf(stderr,
+	  "{%016" PRIx64
+	  ",%016" PRIx64
+	  ",%016" PRIx64
+	  ",%016" PRIx64
+	  "}\n\n", inc[0],inc[1],inc[2],inc[3]);
+  
   if (dry_run) exit(0);
 }
 
@@ -119,13 +129,7 @@ void spew_all(FILE* file, uint64_t n)
   size_t  t;
 
   wrap_vprng_init(&prng);
-  test_banner(VPRNG_NAME);
-  fprintf(stderr,
-	  "{%016" PRIx64
-	  ",%016" PRIx64
-	  ",%016" PRIx64
-	  ",%016" PRIx64
-	  "}\n", prng.inc[0],prng.inc[1],prng.inc[2],prng.inc[3]);
+  test_banner(VPRNG_NAME, &prng);
 
   // note: it's on purpose with "n=0" is to run until killed (ditto other loops)
   while(--n) {
@@ -145,7 +149,7 @@ void cspew_all(FILE* file, uint64_t n)
   size_t   t;
 
   wrap_cvprng_init(&prng);
-  test_banner("c" VPRNG_NAME);
+  test_banner("c" VPRNG_NAME, &prng.base);
 
   while(--n) {
     cvprng_block_fill_u32(BUFFER_LEN, buffer, &prng);

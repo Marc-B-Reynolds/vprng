@@ -7,6 +7,10 @@
 #include <m4ri/m4ri_config.h>
 #include <m4ri/m4ri.h>
 
+#include "vprng.h"     // just for some defines
+#include "common.h"
+#include "xorshift.h"
+
 // create initial state values for the XorShift
 // let the first value of the "sequence" be one then
 
@@ -153,8 +157,58 @@ uint64_t xorshift(uint64_t x)
 
 const uint64_t offsets[] = {P0,P1,P2,P3};
 
+#if 1
+
+xorshift_def_t* def;
+
+void name_3_term(void)
+{
+}
+
+
+uint64_t build_m(uint64_t x)
+{
+  return def->m(x,def->k[0],def->k[1],def->k[2]);
+}
+
+void build_3_term(void)
+{
+  uint64_t d[64];
+  mzd_t*   m = m4ri_alloc_64();
+  mzd_t*   p = m4ri_alloc_64();
+  uint64_t r = 1;
+
+  for(uint32_t i=0; i<LENGTHOF(xorshift_def); i++) {
+    def = xorshift_def+i;
+
+    // create the matrix (M)
+    func_to_mat(d, build_m);
+    to_m4ri(m,d);
+    
+    printf("{");
+
+    // compute M^p (p from array offsets)
+    for(uint32_t i=0; i<4; i++) {
+      mzd_copy(p,m);
+      m4ri_pow(p,offsets[i]);
+
+      // result is the first column since
+      // we're transforming '1'.
+      r = get_col_m4ri(p,0);
+      printf("0x%016" PRIx64 ",", r);
+    }
+    
+    printf("\b}\n");
+  }
+}
+#endif  
+
+
 int main(void)
 {
+  build_3_term(); return 0;
+
+
   uint64_t d[64];
   mzd_t*   m = m4ri_alloc_64();
   mzd_t*   p = m4ri_alloc_64();
@@ -165,7 +219,6 @@ int main(void)
   to_m4ri(m,d);
 
   printf("constants for " NAME "\n");
-
 
 
 #if 0  

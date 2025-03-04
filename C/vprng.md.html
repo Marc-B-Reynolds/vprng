@@ -272,12 +272,20 @@ The standard notion of an XorShift is the three term version create by George Ma
 Some properties of these were examined by François Panneton in his thesis ([#XorShift2] type I generators in Chapter 8) which is in French. The part we're interested in is after he's reduced the candidate set down to examining a sub-set of the possible forms (in matrix notation):
 
 $$
-X_1 = \left(I+L^c\right)\left(I+R^b\right)\left(I+L^a\right) \newline
-X_2 = \left(I+L^a\right)\left(I+R^b\right)\left(I+L^c\right) \newline
+X_1 = \left(I+L^c\right)\left(I+R^b\right)\left(I+L^a\right) \\
+X_2 = \left(I+L^a\right)\left(I+R^b\right)\left(I+L^c\right) \\
 X_5 = \left(I+R^b\right)\left(I+L^c\right)\left(I+L^a\right)
 $$
 
 reduced the number of shift defining triples $\left(a,b,c\right)$ and has computed goodness of equidistribtion measure. This last is skimmed in the English paper [#XorShift3] where it is called ${\Delta}_1$  Good values are small where the ideal is zero. Since we're using an *XorShift* as merely a state update and not directly as a PRNG the remaining properties explored are of little interest. 
+
+$ x' = X_2~x = \left(I+L^a\right)\left(I+R^b\right)\left(I+L^c\right)x $
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ c
+ x = x ^ (x << c); // (I+L^c)x
+ x = x ^ (x >> b); // (I+R^b)(I+L^c)x
+ x = x ^ (x << a); // (I+L^a)(I+R^b)(I+L^c)x
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 the remaining proteries explored 
 
