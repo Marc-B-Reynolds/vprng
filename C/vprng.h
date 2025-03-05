@@ -267,6 +267,16 @@ typedef struct { u64x4_t state; } vprng_t;
 
 typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
 
+
+// 32x8 integer product
+static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
+{
+  return vprng_cast_u64(vprng_cast_u32(x)*m);
+}
+
+// compile time select the bit finalizer
+#if !defined(VPRNG_MIX_EXTERNAL)
+
 // the finalizer parameters could be refined
 // * Ok defs need revisiting marked pairs seem
 //   too similar and will lead to a weakness
@@ -301,15 +311,6 @@ static const u32x8_t finalize_m1 =
   0x959b4a4d
 };
 
-
-// 32x8 integer product
-static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
-{
-  return vprng_cast_u64(vprng_cast_u32(x)*m);
-}
-
-// compile time select the bit finalizer
-#if !defined(VPRNG_MIX_EXTERNAL)
 static inline u32x8_t vprng_mix(u64x4_t x)
 {
   x ^= x >> 33;
@@ -324,6 +325,12 @@ static inline u32x8_t vprng_mix(u64x4_t x)
 static inline u32x8_t vprng_mix(u64x4_t x);
 #endif
 
+// the default cvprng using same finalizer as vprng
+#if !defined(VPRNG_CMIX_EXTERNAL)
+static inline u32x8_t cvprng_mix(u64x4_t x) { return vprng_mix(x); }
+#else
+static inline u32x8_t cvprng_mix(u64x4_t x);
+#endif
 
 // compile time select the state update
 #if !defined(VPRNG_STATE_EXTERNAL)
@@ -374,8 +381,8 @@ static const u64x4_t vprng_state_inc =
   UINT64_C(0x5dfe35e13df556d7),
 };
 
-static inline u64x4_t vprng_inc (vprng_t*  __attribute__((unused)) prng) { return vprng_state_inc; }
-static inline u64x4_t cvprng_inc(cvprng_t* __attribute__((unused)) prng) { return vprng_state_inc; }
+static inline u64x4_t vprng_inc (__attribute__((unused)) vprng_t*  prng) { return vprng_state_inc; }
+static inline u64x4_t cvprng_inc(__attribute__((unused)) cvprng_t* prng) { return vprng_state_inc; }
 #endif
 
 // core base generator
@@ -396,7 +403,7 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 {
   u64x4_t s0 = prng->base.state;
   u64x4_t s1 = prng->f2;
-  u32x8_t r  = vprng_mix(s0+s1);
+  u32x8_t r  = cvprng_mix(s0+s1);
 
   vprng_result_barrier(r,s1);
 
@@ -427,7 +434,9 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 
 #if defined(VPRNG_IMPLEMENTATION)
 
+#if !defined(VPRNG_ADDITIVE_CONSTANT_EXTERN)
 #include <stdatomic.h>
+
 
 // 64-bit population count
 static_assert(sizeof(long long int) == 8, "fixup vprng_pop");
@@ -478,7 +487,7 @@ static uint64_t vprng_additive_next(void)
     }
   } while(1);
 }
-
+#endif
 
 //*******************************************************************
 
@@ -490,6 +499,8 @@ static inline void vprng_pos_init(vprng_t* prng)
   prng->state    = v >> 1;
   prng->state[0] = v[0];
 }
+
+#if !defined(VPRNG_ADDITIVE_CONSTANT_EXTERN)
 
 // initializes the generator to the next set of additive constants.
 void vprng_init(vprng_t* prng)
@@ -503,6 +514,10 @@ void vprng_init(vprng_t* prng)
 
   vprng_pos_init(prng);
 }
+
+#else
+extern void vprng_init(vprng_t* prng);
+#endif
 
 #ifndef VPRNG_CVPRNG_3TERM
 
@@ -588,7 +603,7 @@ static uint64_t vprng_modinv(uint64_t a)
   return x;
 }
 
-#if !defined(VPRNG_HIGHLANDER)  
+#if !(defined(VPRNG_HIGHLANDER)||defined(VPRNG_ADDITIVE_CONSTANT_EXTERN))
 
 uint64_t vprng_id_get(vprng_t* prng)
 {
@@ -609,8 +624,8 @@ uint64_t vprng_pos_get(vprng_t* prng)
 
 #else
 
-uint64_t vprng_id_get (vprng_t*  __attribute__((unused)) prng) { return 0; }
-uint64_t cvprng_id_get(cvprng_t* __attribute__((unused)) prng) { return 0; }
+uint64_t vprng_id_get (__attribute__((unused)) vprng_t*   prng) { return 0; }
+uint64_t cvprng_id_get(__attribute__((unused)) cvprng_t*  prng) { return 0; }
 
 uint64_t vprng_pos_get(vprng_t* prng)
 {
