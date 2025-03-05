@@ -3,6 +3,10 @@
 # hack of https://betterdev.blog/minimal-safe-bash-script-template
 # because LOL bash scripting. added comments from the post
 
+# TODO:
+# add single generator testing support
+# add more practrand options support.  '-tf 2' is catching defects very fast
+
 # stop if some things go sideways
 # -e : command return non-zero status
 # -u : undefine bash variable
