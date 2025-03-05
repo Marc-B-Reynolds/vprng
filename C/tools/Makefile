@@ -45,10 +45,13 @@ distclean:	clean
 	@$(foreach file, $(FSRC), ${CC} ${IDIRS} -MM -MQ${file:.c=}  $(file) >> .makedep;)
 
 # even hacker
-makedata_vpcg:
+makedata_vpcg32: makedata.c ../vprng.h ../vpcg32.h
+	${CC} -DVPRNG_INCLUDE=\"vpcg32.h\" ${CFLAGS} makedata.c -o $@ ${LDLIBS}
+
+makedata_vpcg:  makedata.c ../vprng.h ../vpcg.h
 	${CC} -DVPRNG_INCLUDE=\"vpcg.h\" ${CFLAGS} makedata.c -o $@ ${LDLIBS}
 
-makedata_vsplitmix:
+makedata_vsplitmix:  makedata.c ../vprng.h ../vsplitmix.h
 	${CC} -DVPRNG_INCLUDE=\"vsplitmix.h\" ${CFLAGS} makedata.c -o $@ ${LDLIBS}
 
 vprng_testu01:vprng_testu01.c
