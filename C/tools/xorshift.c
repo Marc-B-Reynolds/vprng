@@ -157,13 +157,8 @@ uint64_t xorshift(uint64_t x)
 
 const uint64_t offsets[] = {P0,P1,P2,P3};
 
-#if 1
-
 xorshift_def_t* def;
 
-void name_3_term(void)
-{
-}
 
 
 uint64_t build_m(uint64_t x)
@@ -184,8 +179,29 @@ void build_3_term(void)
     // create the matrix (M)
     func_to_mat(d, build_m);
     to_m4ri(m,d);
+
+    // check that it's invertiable which means it's full rank
+    mzd_copy(p,m);
+    int legal = (mzd_echelonize(p,1) == 64);
+
+    if (!legal) printf("WAT!"); 
     
-    printf("{");
+
+    // lazy hack the "name"
+    {
+      char* xn;
+      
+      if      (xorshift_def[i].m == xorshift_x1) xn = "X1";
+      else if (xorshift_def[i].m == xorshift_x2) xn = "X2";
+      else if (xorshift_def[i].m == xorshift_x5) xn = "X5";
+      else                                       xn = "??";
+
+      uint32_t* p = &(xorshift_def[i].k[0]);
+      printf("%s(%u,%u,%u)\n", xn,p[0],p[1],p[2]);
+    }
+
+    // initial state values
+    printf(" {");
 
     // compute M^p (p from array offsets)
     for(uint32_t i=0; i<4; i++) {
@@ -199,62 +215,32 @@ void build_3_term(void)
     }
     
     printf("\b}\n");
+
+    // hobbled initial state numbers
+    printf(" {0x1");
+
+    // compute M^i 
+    mzd_copy(p,m);
+
+    for(uint32_t i=1; i<5; i++) {
+      // dumb. but so what.
+      mzd_copy(p,m);
+      m4ri_pow(p,i);
+      r = get_col_m4ri(p,0);
+      printf(",0x%" PRIx64, r);
+    }
+    
+    printf("}\n");
+    
+    
+    printf("\n");
   }
 }
-#endif  
 
 
 int main(void)
 {
-  build_3_term(); return 0;
-
-
-  uint64_t d[64];
-  mzd_t*   m = m4ri_alloc_64();
-  mzd_t*   p = m4ri_alloc_64();
-  uint64_t r = 1;
-
-  // create the matrix
-  func_to_mat(d, xorshift);
-  to_m4ri(m,d);
-
-  printf("constants for " NAME "\n");
-
-
-#if 0  
-  // generate the initial state values
-  mzd_copy(p,m);
-  m4ri_pow(p,P0);
-  r = get_col_m4ri(p,0);
-  printf("{%016" PRIx64 ", ", r);
-
-  mzd_copy(p,m);
-  m4ri_pow(p,P1);
-  r = get_col_m4ri(p,0);
-  printf("%016" PRIx64 ", ", r);
-
-  mzd_copy(p,m);
-  m4ri_pow(p,P2);
-  r = get_col_m4ri(p,0);
-  printf("%016" PRIx64 ", ", r);
-
-  mzd_copy(p,m);
-  m4ri_pow(p,P3);
-  r = get_col_m4ri(p,0);
-  printf("%016" PRIx64 "}\n", r);
-#else
-  printf("{");
-
-  for(uint32_t i=0; i<4; i++) {
-    mzd_copy(p,m);
-    m4ri_pow(p,offsets[i]);
-    r = get_col_m4ri(p,0);
-    printf("0x%016" PRIx64 ",", r);
-  }
-
-  printf("\b}\n");
-#endif  
-  
+  build_3_term();
   
   return 0;
 }
