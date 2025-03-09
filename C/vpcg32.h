@@ -1,7 +1,41 @@
 // Marc B. Reynolds, 2025
 // Public Domain under http://unlicense.org, see link for details.
 
-// WIP
+// WIP:
+// * single state consistently getting sus values at 2GB and failing on 8 GB with -tf 2
+// * combined generator with 2-term has passed one -tf 2 up to 512GB (need to run full)
+
+/*
+  ./makedata_vpcg32 --test-id 1 | RNG_test stdin64 -tf 2 -tlmin 2GB -tlmax 512GB -seed 1
+  
+RNG_test using PractRand version 0.94
+vpcg32 (0.0.1) id=0 (from test-id=1)
+{9e3779b99e3779b9,9e3779b99e3779b9,9e3779b99e3779b9,9e3779b99e3779b9}
+
+RNG = RNG_stdin64, seed = 1
+test set = core, folding = extra
+
+rng=RNG_stdin64, seed=1
+length= 2 gigabytes (2^31 bytes), time= 43.7 seconds
+  no anomalies in 646 test result(s)
+
+rng=RNG_stdin64, seed=1
+length= 4 gigabytes (2^32 bytes), time= 86.9 seconds
+  Test Name                         Raw       Processed     Evaluation
+  FPF-14+6/16:all                   R=  -9.7  p =1-4.8e-9   very suspicious
+  ...and 687 test result(s) without anomalies
+
+rng=RNG_stdin64, seed=1
+length= 8 gigabytes (2^33 bytes), time= 173 seconds
+  Test Name                         Raw       Processed     Evaluation
+  FPF-14+6/16:(0,14-0)              R=  -9.4  p =1-2.5e-8   suspicious
+  FPF-14+6/16:(1,14-0)              R=  -8.0  p =1-4.1e-7   mildly suspicious
+  FPF-14+6/16:(2,14-0)              R=  -7.2  p =1-2.3e-6   unusual
+  FPF-14+6/16:(3,14-0)              R=  -8.9  p =1-7.5e-8   mildly suspicious
+  FPF-14+6/16:all                   R= -18.4  p =1-1.2e-17    FAIL !
+  ...and 725 test result(s) without anomalies
+ */  
+
 
 #pragma once
 
@@ -24,6 +58,11 @@ static const u32x8_t vpcg_mul_k =
   0x8664f205, // 1....11..11..1..1111..1......1.1 : 13  8
 };
 
+
+// ad.hoc choices almost certainly can be improved
+static const u32x8_t vpcg_mul_m0 = {0x21f0aaad,0xa52fb2cd,0x7feb352d,0x4bdc9aa5,0xac10d4eb,0xdf892d4b,0x462daaad,0x4ffcab35};
+static const u32x8_t vpcg_mul_m1 = {0x735a2d97,0x551e4d49,0x846ca68b,0x2729b469,0x9d51b169,0x3c2da6b3,0x0a36c95d,0xe98db28b};
+
 // simply eight LCGs
 static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i)
 {
@@ -35,13 +74,12 @@ static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i)
 }
 
 // to preserve uniformity we have to use a 32-bit finalizer.
-// !!! would strongly prefer this to be unique per lane.
 static inline u32x8_t vprng_mix(u64x4_t x)
 {
   u32x8_t u = vprng_cast_u32(x);
   
-  u ^= u >> 16; u *= 0x21f0aaad;
-  u ^= u >> 15; u *= 0x735a2d97;
+  u ^= u >> 16; u *= vpcg_mul_m0;
+  u ^= u >> 15; u *= vpcg_mul_m1;
   u ^= u >> 15;
 
   return u;
