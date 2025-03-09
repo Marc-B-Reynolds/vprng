@@ -233,6 +233,19 @@ typedef double   f64x4_t __attribute__ ((vector_size(32)));
 static inline u32x8_t vprng_cast_u32(u64x4_t u) { u32x8_t r; memcpy(&r,&u,32); return r; }
 static inline u64x4_t vprng_cast_u64(u32x8_t u) { u64x4_t r; memcpy(&r,&u,32); return r; }
 
+static inline u32x8_t vprng_splat_u32(uint32_t x)
+{
+  u32x8_t r = {x,x,x,x,x,x,x,x};
+  return r;
+}
+
+static inline u64x4_t vprng_splat_u64(uint64_t x)
+{
+  u64x4_t r = {x,x,x,x};
+  return r;
+}
+
+
 // remaining function defs later in file
 #endif
 
