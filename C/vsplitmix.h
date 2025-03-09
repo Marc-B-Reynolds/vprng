@@ -14,7 +14,12 @@
 //
 // Ideally this should be "more" different. I'd be much happier
 // with four unique finalizers BUT the trick is finding a good
-// set which all have the same shift amounts.
+// set which all have the same shift amounts. Also that means
+// (potentially..compiler+arch dep) more data loads...so maybe not?
+// (could load 1 64-bit + splat per constant with all the same)
+//
+// By my measure 'mix03' is outperforming mix14 on low entropy
+// inputs. 
 
 #pragma once
 
