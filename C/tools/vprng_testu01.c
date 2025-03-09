@@ -24,8 +24,6 @@
 #include "swrite.h"
 #include "bbattery.h"
 
-#define VPRNG_INCLUDE "vpcg.h"
-
 #define VPRNG_IMPLEMENTATION
 #ifndef VPRNG_INCLUDE
 #include "vprng.h"
