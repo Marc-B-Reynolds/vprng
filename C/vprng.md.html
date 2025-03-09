@@ -4,8 +4,9 @@
                **vprng <small>vectorized pseudo random number generator</small>**
 
 
-!!! TIP
-    Alpha version library and documentation. WIP
+**Alpha version library and documentation. WIP**
+
+**GitHub user fp64 noted *very* fast failure on PractRand using -tf 2**  Need to put on thinking cap.
 
 
 NOTE: this is a [markdeep](https://casual-effects.com/markdeep/) document and will render funky in the GitHub preview.
@@ -17,8 +18,8 @@ This is a single file header that implements two *vectorized* pseduo-random numb
 
 The intended default target is middle-ground: not the fastest possible nor attempting to complete with *state-of-the-art*.
 
-* for speed we have 4 shifts and 2 products on the path to the result
-* for statisitical quality 10 (repeatable) runs of `PractRand` on power-of-two input sizes from 1MB to 512GB only produce 1 *unusual* XXXXX
+* for speed we have 4 xorshifts and 2 products on the path to the result (**meh** mixer looks like needs structural mod)
+* for statisitical quality: (**work in progress** see mixer section)
 
 The implementation is mostly *C99* with a sprinkling of *C11* (currently `<stdatomic.>` but I should add some `static_assert`). More importantly instead of using architecture specific intrinsics the code uses the GCC `vector_size` extension for accessing SIMD operations.
 
@@ -44,11 +45,12 @@ Also there's no attempt at being a feature rich library and only provides initia
 
 Like almost all *single header file* libraries you simple include the header and in exactly one source file define the macro `#define VPRNG_IMPLEMENTATION` prior to inclusion. However if any compile-time configuration is used some wrapper header should be used instead to ensure the same configuration is used everywhere. The repository has example wrapper headers:
 
-| header     |    |
+| header     | brief | foo | bar |
 |:---        |:---|
-|vprng.h     | baseline header   |
-|vpcg.h      | 64-bit product state update and mixer  |
-|vsplitmix.h | 64-bit product mixer  |
+|vprng.h     | baseline header | | |
+|vpc32.h     |   | | |
+|vpcg.h      | 64-bit product state update and mixer  | | |
+|vsplitmix.h | 64-bit product mixer  | | |
 
 However my expection this is more interesting as a reference version (for other languages) and/or development and testing bed.
 
@@ -165,26 +167,26 @@ The default state update is depicted by this diagram:
 
 *************************************************************************************************
 *
-*   .-----+-----.-----+-----.-----+-----.-----+-----.
-*   |   inc 3   |   inc 2   |   inc 1   |   inc 0   |
-*   '-----+-----'-----+-----'-----+-----'-----+-----'
-*         v           v           v           v
-*        .+.         .+.         .+.         .+.
-*     +-+ ＋ |     +-+ ＋ |     +-+ ＋ |     +-+ ＋ |
-*     |  '+'      |  '+'      |  '+'      |  '+'
-*     v   ^       v   ^       v   ^       v   ^
-*   .-+---+-----.-----+-----.-----+-----.-----+-----.
-*   |  state 3  |  state 2  |  state 1  |  state 0  |
-*   '-----+-----'-----+-----'-----+-----'-----+-----'
-*         |           |           |           |
-*         v           v           v           v
-*   .-----------------------------------------------.
-*   |                 bit finalizer                 |
-*   '-----------------------------------------------'
+*      .-----+-----.-----+-----.-----+-----.-----+-----.
+*      |   inc 3   |   inc 2   |   inc 1   |   inc 0   |
+*      '-----+-----'-----+-----'-----+-----'-----+-----'
+*            v           v           v           v
+*           .+.         .+.         .+.         .+.
+*        +-+ ＋ |     +-+ ＋ |     +-+ ＋ |     +-+ ＋ |
+*        |  '+'      |  '+'      |  '+'      |  '+'
+*        v   ^       v   ^       v   ^       v   ^
+*      .-+---+-----.-----+-----.-----+-----.-----+-----.
+*in -->+  state 3  |  state 2  |  state 1  |  state 0  +--> out state
+*      '-----+-----'-----+-----'-----+-----'-----+-----'
+*            |           |           |           |
+*            v           v           v           v
+*      .-----------------------------------------------.
+*      |                 bit finalizer                 |
+*      '-----------------------------------------------'
 *
 *************************************************************************************************
 
-which is very useful and totally not 
+which is very useful and totally not me just goofing with markdeep's ascii diagram feature.
 
 
 
