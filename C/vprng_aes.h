@@ -8,6 +8,8 @@
 
 // * to maintain uniformity requires two 128-bit state blocks so the base state is a
 //   128-bit Weyl sequence (period 2^128)
+// * each of the two states run fixed sequences and the computed additive constants
+//   are retooled as keys to AES.
 
 #pragma once
 
@@ -214,7 +216,8 @@ static const u64x4_t results[] = {
 uint32_t output_vectors(void)
 {
   test_name("test vector");
-  
+
+  // initialize to known & fixed state
   vprng_t prng = {
     .state = {0},
     .inc   = {
