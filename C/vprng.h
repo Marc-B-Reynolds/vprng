@@ -292,48 +292,65 @@ static inline u64x4_t vprng_mix_mul(u64x4_t x, u32x8_t m)
 // compile time select the bit finalizer
 #if !defined(VPRNG_MIX_EXTERNAL)
 
-// the finalizer parameters could be refined
-// * Ok defs need revisiting marked pairs seem
-//   too similar and will lead to a weakness
-//   but replacing with "nuked" consants then
-//   everything goes sideway. consistently
-//   questionable at 256gb and fails at 512gb.
-//   see below
+// newer version than initial check-in. hand refined
+// constants and added an extra xorshift. This
+// drastically improved SAC measures. An optimizing
+// proceedure would need to be written to get another
+// jump. Comparing to the 64-bit murmur style mix14
+// it's not far out on the mean but need help on the
+// max. These are (same for all 4 64-bit blocks)
+//
+//   |bias| = 0.00078181 ± 0.00059679 : max = 0.003954 (mix14)
+//   |bias| = 0.00077872 ± 0.00059169 : max = 0.003340 (mix03)
+// 
+// current version:
+//   |bias| = 0.00089735 ± 0.00081506 : max = 0.009876
+//   |bias| = 0.00101875 ± 0.00115915 : max = 0.012527
+//   |bias| = 0.00101763 ± 0.00106683 : max = 0.011875
+//   |bias| = 0.00085375 ± 0.00079878 : max = 0.017200
+//
+// original version:
+//   |bias| = 0.01108408 ± 0.03786583 : max = 0.523777
+//   |bias| = 0.01173061 ± 0.03889093 : max = 0.524384
+//   |bias| = 0.00962076 ± 0.03821139 : max = 0.572851
+//   |bias| = 0.00995480 ± 0.03496292 : max = 0.500401
 
-static const u32x8_t finalize_m0 =
+static const u32x8_t vprng_finalize_m0 =
 {
-  0x21f0aaad, // 
-  0x603a32a7,
-  0x21f0aaad, // ??
-//0xa812d533, nuked
-  0x97219aad,
-  0xb237694b,
-  0x8ee0d535,
-  0xdc63b4d3,
-  0x93f2552b
+  0b01010100111001010101100110011001,
+  0b00101100100100110111011010110101,
+  0b00111010100110101010100110101011,
+  0b01000101000100110110100110110101,
+
+  0b11110011010110100010110110010111,
+  0b10101101101101001010100100101011,
+  0b10000010110000101111110010101101,
+  0b10101100010101100100101100000111,
 };
 
-static const u32x8_t finalize_m1 =
+static const u32x8_t vprng_finalize_m1 =
 {
-  0xf35a2d97, // 
-  0x5a522677,
-  0xd35a2d97, // ??
-//0xb278e4ad, nuked 
-  0xab46b735,
-  0xeb5b4593,
-  0x5dc6b5af,
-  0x2c32b9a9,  
-  0x959b4a4d
+  0b10010011010101110110010111011101,
+  0b10101101101101001010100100101101,
+  0b10000010110000011111110010101101,
+  0b10101100010101100100101100000111,
+  
+  0b01100011011010001010101010101101,
+  0b10101110110001010101000101001011,
+  0b10000010111000101111001010101101,
+  0b01011010010101001001110100010111,
 };
 
 static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 {
   x ^= x >> 33;
   
-  x ^= x >> 16; x = vprng_mix_mul(x,finalize_m0);
-  x ^= x << 15; x = vprng_mix_mul(x,finalize_m1);
-  x ^= x >> 17;
+  x ^= x >> 16; x = vprng_mix_mul(x,vprng_finalize_m0);
+  x ^= x << 16; x = vprng_mix_mul(x,vprng_finalize_m1);
+  x ^= x >> 16; x = vprng_mix_mul(x,vprng_finalize_m0);
 
+  x ^= x >> 32;
+  
   return vprng_cast_u32(x);
 }
 #else
