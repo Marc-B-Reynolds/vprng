@@ -245,6 +245,8 @@ void timing_test(func_entry_t* entry, int len)
   uint64_t data[time_trials];
   seq_stats_t stats;
 
+  printf(BOLD "%s" ENDC " (%s)\n", VPRNG_NAME, VPRNG_VERSION_STR);
+  
   printf("┌───────────────────┬"
          "────────────────────────────┬"
          "────────────────┬"

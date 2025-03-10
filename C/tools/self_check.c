@@ -6,7 +6,10 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#if defined(__AVX2__)
 #include <x86intrin.h>
+#else
+#endif
 
 #define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
 
@@ -63,6 +66,25 @@ bool u64x4_eq(u64x4_t a, u64x4_t b)
   // vptest  ymm0, ymm0
   // sete    al
   return memcmp(&a, &b, sizeof(u64x4_t)) == 0;
+}
+
+void dump2_u64x4(u64x4_t a, u64x4_t b)
+{
+  printf("\n    "
+	 "%16"  PRIx64
+	 ":%16" PRIx64
+	 ":%16" PRIx64
+	 ":%16" PRIx64
+	 " <- expected\n   " FAIL
+	 " %16" PRIx64
+	 ":%16" PRIx64
+	 ":%16" PRIx64
+	 ":%16" PRIx64
+	 ENDC " <- got\n  "
+	 ,
+	 a[3],a[2],a[1],a[0],
+	 b[3],b[2],b[1],b[0]
+	 );
 }
 
 u32x8_t mod_inverse_u32x8(u32x8_t a)
@@ -190,9 +212,10 @@ int main(void)
 #else
   test_banner(VPRNG_NAME);
 #if defined(SELF_TEST)
-  self_test();
+  return (int)self_test();
 #else
-  printf("  no specialized test defined\n");
+  printf(OKGREEN "  has no specialized tests defined\n" ENDC);
+  return 0;
 #endif
 #endif  
 

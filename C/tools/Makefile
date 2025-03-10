@@ -14,7 +14,7 @@ LDLIBS = -lm
 
 # list of all variants
 VAR      := ${filter-out vprng, $(basename $(notdir $(wildcard ../*.h)))}
-VTARGETE := makedata self_check
+VTARGETE := makedata self_check timing
 VTARGETS := $(strip $(foreach suffix, $(VAR), $(foreach exe, $(VTARGETE), $(exe)_$(suffix))))
 
 
@@ -39,11 +39,11 @@ ifeq ($(OS),Windows_NT)
   LDFLAGS   += -static
 endif
 
-all:    ${TARGETS}
+all:	${TARGETS}
 
 it:	${TARGETS} ${FTARGETS} ${VTARGETS}
 
-$(VAR): %: makedata_% timing_% self_check_%
+$(VAR):	%:	makedata_% timing_% self_check_%
 
 clean:
 	-${RM} ${FTARGETS} ${VTARGETS}
@@ -65,19 +65,19 @@ xorshift:	xorshift.c
 
 # even hacker
 
-self_check_%:  self_check.c Makefile ../vprng.h ../%.h
+self_check_%:	self_check.c Makefile ../vprng.h ../%.h
 	${CC} -DVPRNG_INCLUDE=\"$*.h\" ${CFLAGS} self_check.c -o $@ ${LDLIBS}
 
-makedata_%: makedata.c Makefile ../vprng.h ../%.h
+makedata_%:	makedata.c Makefile ../vprng.h ../%.h
 	${CC} -DVPRNG_INCLUDE=\"$*.h\" ${CFLAGS} makedata.c -o $@ ${LDLIBS}
 
-timing_%: timing.c Makefile ../vprng.h ../%.h
+timing_%:	timing.c Makefile ../vprng.h ../%.h
 	${CC} -DVPRNG_INCLUDE=\"$*.h\" ${CFLAGS} timing.c -o $@ ${LDLIBS}
 
-vprng_testu01:vprng_testu01.c
+vprng_testu01:	vprng_testu01.c
 	${CC} ${CFLAGS} $< -o $@ ${LDLIBS} -lmylib -ltestu01
 
-testu01_%: vprng_testu01.c Makefile ../vprng.h ../%.h
+testu01_%:	vprng_testu01.c Makefile ../vprng.h ../%.h
 	${CC} -DVPRNG_INCLUDE=\"$*.h\" ${CFLAGS} $< -o $@ ${LDLIBS} -lmylib -ltestu01
 
 help:

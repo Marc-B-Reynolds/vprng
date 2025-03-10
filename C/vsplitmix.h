@@ -41,7 +41,7 @@ static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 
 //
 #if defined(VPRNG_SELF_TEST)
-#define SELF_TEST
+//#define SELF_TEST
 
 uint32_t self_test(void)
 {
