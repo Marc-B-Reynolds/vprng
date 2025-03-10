@@ -204,11 +204,11 @@ for arg in "${args[@]}"; do
     FILE="${FILEBASE}_${arg}.txt"
 
     # show the command to be executed in the terminal
-    msg "${GREEN}./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} >> ${FILE} ${NOFORMAT}"  # temp hack
+    msg "${GREEN}./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED} >> ${FILE} ${NOFORMAT}"  # temp hack
     msg ""
 
     # also place it at the top of the output file
-    echo "./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED}" >> $FILE
+    echo "./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED}" >> $FILE
 
     # and the --dryrun option output as well (info is in stderr. stdout feeds RNG_test et al.)
     ./${MAKEDATA} ${MOPT} --test-id=${arg} --dryrun 2> $FILE 
@@ -216,7 +216,7 @@ for arg in "${args[@]}"; do
     # run the actual test
     #   sending any stderr from 'makedata' to FILE
     #   the "|| true" is needed because there'll be a SIGPIPE (exit code 141) when 'RNG_test' closes the stream
-    ./${MAKEDATA} ${MOPT} --test-id=${arg} 2> >(tee -a $FILE >&2) | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE || true
+    ./${MAKEDATA} ${MOPT} --test-id=${arg} 2> >(tee -a $FILE >&2) | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE || true
 
     msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
 done
