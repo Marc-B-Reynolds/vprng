@@ -19,14 +19,4 @@ Required SIMD hardware operations (for performance):
 
 Example variants can *up the ante* on hardware operations and/or make performance/quality tradeoffs.
 
-The *baseline* version is a single header file `vprng.h` 
-
-
-** f64 noted the current baseline version fails PractRand very quicky:**
-with `-tf2` option: *suspicious* p-values at merely 16MB and straight fail at 32MB. Sadface.
-Investigation indicates a large reduction in max bias of the finalizer is needed to improve
-this. Since the finalizer falls on the result path I'm considering possible structural
-changes. (the trick is limiting to 32-bit products and common SIMD ops for max arch support)
-
-(STRIPPED COMMENTS UNTIL I REVIST FINALIZER AND STRUCTURE)
-
+The *baseline* version is a single header file [vprng.h](C/vprng.h)
