@@ -74,7 +74,7 @@ static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i)
 }
 
 // to preserve uniformity we have to use a 32-bit finalizer.
-static inline u32x8_t vprng_mix(u64x4_t x)
+static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 {
   u32x8_t u = vprng_cast_u32(x);
   

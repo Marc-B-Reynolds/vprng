@@ -219,6 +219,8 @@
 #define VPRNG_XS_B 7
 #define VPRNG_XS_C 33
 
+#define vprng_unused __attribute__((unused))
+
 //*******************************************************************
 // Stripped down "portable" 256 bit SIMD via vector_size extension
 
@@ -324,7 +326,7 @@ static const u32x8_t finalize_m1 =
   0x959b4a4d
 };
 
-static inline u32x8_t vprng_mix(u64x4_t x)
+static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 {
   x ^= x >> 33;
   
@@ -335,14 +337,14 @@ static inline u32x8_t vprng_mix(u64x4_t x)
   return vprng_cast_u32(x);
 }
 #else
-static inline u32x8_t vprng_mix(u64x4_t x);
+static inline u32x8_t vprng_mix(vprng_t* prng, u64x4_t x);
 #endif
 
-// the default cvprng using same finalizer as vprng
+// the default cvprng uses the same finalizer as vprng
 #if !defined(VPRNG_CMIX_EXTERNAL)
-static inline u32x8_t cvprng_mix(u64x4_t x) { return vprng_mix(x); }
+static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t x) { return vprng_mix(&prng->base, x); }
 #else
-static inline u32x8_t cvprng_mix(u64x4_t x);
+static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t x);
 #endif
 
 // compile time select the state update
@@ -394,15 +396,15 @@ static const u64x4_t vprng_state_inc =
   UINT64_C(0x5dfe35e13df556d7),
 };
 
-static inline u64x4_t vprng_inc (__attribute__((unused)) vprng_t*  prng) { return vprng_state_inc; }
-static inline u64x4_t cvprng_inc(__attribute__((unused)) cvprng_t* prng) { return vprng_state_inc; }
+static inline u64x4_t vprng_inc (vprng_unused vprng_t*  prng) { return vprng_state_inc; }
+static inline u64x4_t cvprng_inc(vrpng_unused cvprng_t* prng) { return vprng_state_inc; }
 #endif
 
 // core base generator
 static inline u32x8_t vprng_u32x8(vprng_t* prng)
 {
   u64x4_t s = prng->state;
-  u32x8_t r = vprng_mix(s);
+  u32x8_t r = vprng_mix(prng,s);
 
   vprng_result_barrier(r,s);
   
@@ -416,7 +418,7 @@ static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 {
   u64x4_t s0 = prng->base.state;
   u64x4_t s1 = prng->f2;
-  u32x8_t r  = cvprng_mix(s0+s1);
+  u32x8_t r  = cvprng_mix(prng, s0+s1);
 
   vprng_result_barrier(r,s1);
 
@@ -637,8 +639,8 @@ uint64_t vprng_pos_get(vprng_t* prng)
 
 #else
 
-uint64_t vprng_id_get (__attribute__((unused)) vprng_t*   prng) { return 0; }
-uint64_t cvprng_id_get(__attribute__((unused)) cvprng_t*  prng) { return 0; }
+uint64_t vprng_id_get (vprng_unused vprng_t*   prng) { return 0; }
+uint64_t cvprng_id_get(vprng_unused cvprng_t*  prng) { return 0; }
 
 uint64_t vprng_pos_get(vprng_t* prng)
 {

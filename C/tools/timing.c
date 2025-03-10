@@ -9,6 +9,7 @@
 #include <math.h>
 #include <stdio.h>
 
+// temp hack
 #include <x86intrin.h>
 
 // if defined to aggressively look for "peak" time. 

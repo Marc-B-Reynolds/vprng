@@ -20,13 +20,12 @@
 
 
 //***********************************************************************************
-// state update
-
+// state update: the two 128-bit state updates walk a fixed sequence
 // 
-// k0 = 2-Sqrt[2]          ~= 0.585786 ->
-// k1 = 3-(9+Sqrt[221])/10 ~= 0.386607 ->
-// k0 = 2-Sqrt[2]          ~= 0.585786
-// k1 = (9+Sqrt[221])/10-2 ~= 0.386607
+
+// define the two fixed additive constants
+//  k0 = 2-Sqrt[2]          ~= 0.585786
+//  k1 = (9+Sqrt[221])/10-2 ~= 0.386607
 static const uint64_t vprng_aes_k0_hi = UINT64_C(0x95f619980c4336f7);
 static const uint64_t vprng_aes_k0_lo = UINT64_C(0x4d04ec99156a82c1);
 static const uint64_t vprng_aes_k1_hi = UINT64_C(0x62f8ab0b61cf22c3);
@@ -80,9 +79,10 @@ static inline u64x4_t vprng_aes_carry(u64x4_t v)
 #endif
 
 // 128-bit Weyl sequence
-static inline u64x4_t vprng_state_up(u64x4_t s, __attribute__((unused)) u64x4_t i)
+static inline u64x4_t vprng_state_up(u64x4_t u, vprng_unused u64x4_t i)
 {
-  return v + vprng_aes_add_k - vprng_aes_carry(v);
+  // -1 in lane if there's a carry to it
+  return u + vprng_aes_add_k - vprng_aes_carry(u);
 }
 
 
@@ -100,6 +100,14 @@ static inline vprng_aes_block_t vprng_aes_step(vprng_aes_block_t x, vprng_aes_bl
   return _mm_aesenc_si128(x,k);
 }
 
+static inline u32x8_t vprng_aes_mix_merge(vprng_aes_block_t hi, vprng_aes_block_t lo)
+{
+  u32x8_t r;
+  __m256i v = _mm256_set_m128i(hi,lo);
+  memcpy(&r, &v, 32);
+  return r;
+}
+
 #else
 
 #include <arm_neon.h>
@@ -108,6 +116,10 @@ static inline vprng_aes_block_t vprng_aes_step(vprng_aes_block_t x, vprng_aes_bl
 typedef uint8x16_t vprng_aes_block_t;
 
 static inline vprng_aes_block_t vprng_aes_step(vprng_aes_block_t x, vprng_aes_block_t k)
+{
+}
+
+static inline vprng_aes_block_t vprng_aes_mix_merge(vprng_aes_block_t hi, vprng_aes_block_t lo)
 {
 }
 
@@ -122,40 +134,74 @@ result_.neon_u8 = veorq_u8(
 
 
 
+#if 0
+static inline u32x8_t vprng_mix(u64x4_t x, vprng_t* prng)
+{
+  u64x4_t k = vprng_inv(prng);
+  
+  vprng_aes_block_t v0 = vprng_aes_block_0(x);
+  vprng_aes_block_t v1 = vprng_aes_block_1(x);
+  vprng_aes_block_t k0 = vprng_aes_block_0(k);
+  vprng_aes_block_t k1 = vprng_aes_block_1(k);
+  
+  v0 = vprng_aes_step(v0, k0);
+  v1 = vprng_aes_step(v1, k1);
+  v0 = vprng_aes_step(v0, k0);
+  v1 = vprng_aes_step(v1, k1);
 
-static inline u32x8_t vprng_mix(u64x4_t x)
+  return vprng_aes_mix_merge(hi,lo);
+}
+
+#else
+static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 {
   __m256i v;
   memcpy(&v, &x, 32);
 
-  __m128i lo = _mm256_castsi256_si128(v);
-  __m128i hi = _mm256_extracti128_si256(v, 1);
+  __m128i v0 = _mm256_castsi256_si128(v);
+  __m128i v1 = _mm256_extracti128_si256(v, 1);
+
+  __m128i k0 = _mm_setzero_si128();
+  __m128i k1 = _mm_setzero_si128();
 
   // probably 2 rounds (w different key...just speculating)
-  lo = _mm_aesenc_si128(lo, key_lo);
-  hi = _mm_aesenc_si128(hi, key_lo);
-  lo = _mm_aesenc_si128(lo, key_hi);
-  hi = _mm_aesenc_si128(hi, key_hi);
+  v0 = _mm_aesenc_si128(v0, k0);
+  v1 = _mm_aesenc_si128(v1, k1);
+  v0 = _mm_aesenc_si128(v0, k0);
+  v1 = _mm_aesenc_si128(v1, k1);
+  v0 = _mm_aesenc_si128(v0, k0);
+  v1 = _mm_aesenc_si128(v1, k1);
 
-  v  = _mm256_set_m128i(hi,lo);
+  v  = _mm256_set_m128i(v0,v1);
 
   memcpy(&x, &v, 32);
   return vprng_cast_u32(x);
 }
+#endif
 
+
+//***********************************************************************************
+// testing/tooling stuff below here
+
+#if defined(VPRNG_STAT_TESTING)
+#endif
 
 #if defined(VPRNG_SELF_TEST)
+#define SELF_TEST
 
 // test vector: yo!
 
-// initial stub
-void carry_test(void)
+bool u64x4_eq(u64x4_t a, u64x4_t b);
+
+uint32_t carry_test(void)
 {
+  test_name("128-bit addition");
+  
   u64x4_t v0 = {0};
   u64x4_t v1 = {0};
   
   for(uint32_t i=0; i<0xffffff; i++) {
-    v0 = next(v0);
+    v0 = vprng_state_up(v0,v0);
     
     // repeat in scalar
     uint64_t r0,r2;
@@ -170,10 +216,20 @@ void carry_test(void)
     
     if (u64x4_eq(v0,v1)) continue;
 
-    // fix up
-    printf("%2u ",i); dump(v1,v0);
+    // add a dump if needed
+    return test_fail();
   }
+  return test_pass();
 }
 
+
+uint32_t self_test(void)
+{
+  uint32_t errors = 0;
+
+  errors += carry_test();
+
+  return errors;
+}
 
 #endif

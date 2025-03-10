@@ -15,6 +15,7 @@
 #include <time.h>
 #include <getopt.h>
 
+#define VPRNG_STAT_TESTING
 #define VPRNG_IMPLEMENTATION
 #ifndef VPRNG_INCLUDE
 #include "vprng.h"

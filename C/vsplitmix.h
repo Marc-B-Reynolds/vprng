@@ -19,7 +19,7 @@
 // (could load 1 64-bit + splat per constant with all the same)
 //
 // By my measure 'mix03' is outperforming mix14 on low entropy
-// inputs. 
+// inputs.
 
 #pragma once
 
@@ -29,7 +29,7 @@
 #include "vprng.h"
 
 // MIX14: http://zimbry.blogspot.com/2011/09/better-bit-mixing-improving-on.html
-static inline u32x8_t vprng_mix(u64x4_t x)
+static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 {
   x ^= x >> 30; x *= UINT64_C(0x4be98134a5976fd3);
   x ^= x >> 29; x *= UINT64_C(0x3bc0993a5ad19a13);
@@ -39,3 +39,15 @@ static inline u32x8_t vprng_mix(u64x4_t x)
 }
 
 
+//
+#if defined(VPRNG_SELF_TEST)
+#define SELF_TEST
+
+uint32_t self_test(void)
+{
+  printf("he's dead Jim\n");
+
+  return 0;
+}
+
+#endif

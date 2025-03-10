@@ -85,6 +85,7 @@ HI=512GB
 PRNG="vprng"
 TYPE="all"
 MOPT=""
+POPT=""
 SEED=1
 MAKEDATA="makedata"
 FPREFIX="practrand"
@@ -197,6 +198,8 @@ fi
 # run the test(s)
 FILEBASE="data/${FPREFIX}_${COMBINED}${PRNG}_${TYPE}"
 
+run_tests () {
+
 for arg in "${args[@]}"; do
     FILE="${FILEBASE}_${arg}.txt"
 
@@ -211,9 +214,14 @@ for arg in "${args[@]}"; do
     ./${MAKEDATA} ${MOPT} --test-id=${arg} --dryrun 2> $FILE 
     
     # run the actual test
-    # the "|| true" is needed because there'll be a SIGPIPE (exit code 141)
-    ./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE || true
+    #   sending any stderr from 'makedata' to FILE
+    #   the "|| true" is needed because there'll be a SIGPIPE (exit code 141) when 'RNG_test' closes the stream
+    ./${MAKEDATA} ${MOPT} --test-id=${arg} 2> >(tee -a $FILE >&2) | RNG_test stdin64 -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE || true
 
     msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
 done
+}
+
+
+run_tests
 

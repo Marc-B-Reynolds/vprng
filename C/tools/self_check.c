@@ -10,10 +10,8 @@
 
 #define LENGTHOF(X) (sizeof(X)/sizeof(X[0]))
 
-#define VPRNG_IMPLEMENTATION
-#include "vprng.h"
-
-#include "common.h"
+// inform headers to include any testing
+#define VPRNG_SELF_TEST
 
 #define HEADER     "\033[95m"
 #define OKBLUE     "\033[94m"
@@ -47,17 +45,17 @@ uint32_t test_u64_eq(uint64_t a, uint64_t b)
   return test_fail();
 }
 
-uint32_t check_basic(void)
-{
-  uint32_t errors = 0;
-  
-  test_banner("basic");
 
-  test_name("base weyl");
-  errors += test_u64_eq(vprng_internal_inc_k*vprng_internal_inc_i,1);
 
-  return errors;
-}
+// build using default or whatever variant
+#define VPRNG_IMPLEMENTATION
+#ifndef VPRNG_INCLUDE
+#include "vprng.h"
+#else
+#include VPRNG_INCLUDE
+#endif
+
+#include "common.h"
 
 bool u64x4_eq(u64x4_t a, u64x4_t b)
 {
@@ -90,6 +88,22 @@ static inline u64x4_t rxorshift_inv_64x4(u64x4_t x, uint32_t n)
 static inline u64x4_t lxorshift_inv_64x4(u64x4_t x, uint32_t n)
 {
   while(n < 64) { x ^= x << n; n += n; } return x;
+}
+
+
+
+#if !defined(VPRNG_INCLUDE)
+
+uint32_t check_basic(void)
+{
+  uint32_t errors = 0;
+  
+  test_banner("basic");
+
+  test_name("base weyl");
+  errors += test_u64_eq(vprng_internal_inc_k*vprng_internal_inc_i,1);
+
+  return errors;
 }
 
 uint32_t check_inv(vprng_t* prng)
@@ -150,10 +164,12 @@ uint32_t check_pos(vprng_t* prng)
 
   return test_pass();
 }
+#endif
 
 
 int main(void)
 {
+#if !defined(VPRNG_INCLUDE)
   vprng_t  prng;
   cvprng_t cprng;
 
@@ -171,6 +187,14 @@ int main(void)
   if (!errors) {
     return 0;
   }
+#else
+  test_banner(VPRNG_NAME);
+#if defined(SELF_TEST)
+  self_test();
+#else
+  printf("  no specialized test defined\n");
+#endif
+#endif  
 
   return -1;
 }

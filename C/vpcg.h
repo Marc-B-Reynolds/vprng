@@ -46,7 +46,7 @@ static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i)
 }
 
 // temp hack: see "vsplitmix.h"
-static inline u32x8_t vprng_mix(u64x4_t x)
+static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
 {
   x ^= x >> 30; x *= UINT64_C(0x4be98134a5976fd3);
   x ^= x >> 29; x *= UINT64_C(0x3bc0993a5ad19a13);
