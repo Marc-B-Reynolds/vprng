@@ -134,8 +134,8 @@ uint32_t check_inv(vprng_t* prng)
   
   // currently can handle modification the multiplicative
   // constants. compute the inverses here.
-  u32x8_t i0 = mod_inverse_u32x8(finalize_m0);
-  u32x8_t i1 = mod_inverse_u32x8(finalize_m1);
+  u32x8_t i0 = mod_inverse_u32x8(vprng_finalize_m0);
+  u32x8_t i1 = mod_inverse_u32x8(vprng_finalize_m1);
 
   // would require tweaks to automatically handle any
   // changes of the xorshift constants.
@@ -145,9 +145,11 @@ uint32_t check_inv(vprng_t* prng)
     u64x4_t x  = vprng_u64x4(prng);
     
     // start inverse
-    x = rxorshift_inv_64x4(x,17); // x ^= x >> 17 (inverse)
+    x = rxorshift_inv_64x4(x,32); // x ^= x >> 32(inverse)
+    x = vprng_mix_mul(x, i0);
+    x = rxorshift_inv_64x4(x,16); // x ^= x >> 16 (inverse)
     x = vprng_mix_mul(x, i1);
-    x = lxorshift_inv_64x4(x,15); // x ^= x << 15
+    x = lxorshift_inv_64x4(x,16); // x ^= x << 16
     x = vprng_mix_mul(x, i0);
     x = rxorshift_inv_64x4(x,16); // x ^= x >> 16 (inverse)
 
