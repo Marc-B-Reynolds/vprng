@@ -101,9 +101,9 @@ int cmp_u64(const void * a, const void * b)
   return ( *(uint64_t*)a > *(uint64_t*)b );
 }
 
-u32x8_t u32x8_junk = {0};
-f32x8_t f32x8_junk = {0};
-f64x4_t f64x4_junk = {0};
+volatile u32x8_t u32x8_junk = {0};
+volatile f32x8_t f32x8_junk = {0};
+volatile f64x4_t f64x4_junk = {0};
 
 __attribute__((noinline)) void nop(__attribute__((unused))void* none)
 {
@@ -142,6 +142,13 @@ __attribute__((noinline)) void vprng_run_f32(vprng_t* prng)
   f32x8_junk = t;
 }
 
+__attribute__((noinline)) void cvprng_run_u32(cvprng_t* prng)
+{
+  u32x8_t t = u32x8_junk;
+  for(uint32_t i=0; i<BUFFER_LEN; i++) { t ^= cvprng_u32x8(prng); }
+  u32x8_junk = t;
+}
+
 __attribute__((noinline)) void cvprng_fill_u32(cvprng_t* prng)
 {
   u32x8_t* d = (u32x8_t*)raw_buffer;
@@ -173,6 +180,7 @@ func_entry_t func_table[] =
     {.name = "mem vprng  u32", .f=(void*)vprng_fill_u32,  .state=&vprng},
     {.name = "run vprng  f32", .f=(void*)vprng_run_f32,   .state=&vprng},
     {.name = "mem vprng  f32", .f=(void*)vprng_fill_f32,  .state=&vprng},
+    {.name = "run cvprng u32", .f=(void*)cvprng_run_u32,  .state=&cvprng},
     {.name = "mem cvprng u32", .f=(void*)cvprng_fill_u32, .state=&cvprng},
     {.name = "mem cvprng f32", .f=(void*)cvprng_fill_f32, .state=&cvprng},
   };
@@ -301,6 +309,9 @@ void timing_test(func_entry_t* entry, int len)
          "─────────┴"
          "─────────┴"
          "─────────┘\n");
+
+  
+
 }
 
 //********************************************************
