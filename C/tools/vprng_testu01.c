@@ -311,7 +311,7 @@ typedef struct {
 
 battery_info_t sample_info[] =
 {
-  [sample_lo]  = {.name="lower 32-bits" },
+  [sample_lo]  = {.name="all channels (cached 32 bit chunks)" },
   [sample_hi]  = {.name="high 32-bits" },
   [sample_rev] = {.name="bitreverse & truncated to 32-bits" }
 };
