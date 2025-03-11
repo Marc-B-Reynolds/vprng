@@ -6,7 +6,7 @@ Bullet pointy stuff
 
 * greatly improved the default bit-mixer
 * added variants:
-  * 12AES variant `vprng_aes.h`
+  * 128-bit AES variant `vprng_aes.h`
   * 32-bit PCG `vpcg32.h`
   * 64-bit PCG `vpcg.h`
   * 64-bit SplitMix `vsplitmix.h`
@@ -14,7 +14,7 @@ Bullet pointy stuff
 -----------------------------------------------
 <small>0.0.1</small>
 
-First *alpha* release. The bit finalizer hasn't been examined and it was built on *vibes*
+First *alpha* release. The bit finalizer hadn't been examined and it was built on *vibes*
 
 * compile time generator selection
 * improved coverage of mutiple generators in `makedata`
