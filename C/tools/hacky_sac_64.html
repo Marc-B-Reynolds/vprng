@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+* {
+  box-sizing: border-box;
+}
+
+/* Create two equal columns that floats next to each other */
+.column {
+  float: left;
+  width: 50%;
+  padding: 1px;
+}
+
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+</style>
+</head>
+
+<body>
+
+<div align="center"><h1>needs browser option to allow local file access</h1></div>
+
+<div class="row">
+  <div class="column">
+    <div align="center"><h2>SAC bias</h2></div>
+    <div align="center"><div class="center" id="channel_0" style="width:100%"></div></div>
+    <div align="center"><div class="center" id="channel_1" style="width:100%"></div></div>
+    <div align="center"><div class="center" id="channel_2" style="width:100%"></div></div>
+    <div align="center"><div class="center" id="channel_3" style="width:100%"></div></div>
+  </div>
+  <div class="column">
+    <div align="center"><h2>rescaled bias</h2></div>
+    <div align="center"><div class="center" id="zchannel_0" style="width:100%"></div></div>
+    <div align="center"><div class="center" id="zchannel_1" style="width:100%"></div></div>
+    <div align="center"><div class="center" id="zchannel_2" style="width:100%"></div></div>
+    <div align="center"><div class="center" id="zchannel_3" style="width:100%"></div></div>
+  </div>
+</div>
+
+  
+
+
+
+</body>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  
+<script>
+  
+// load a raw binary file composed of solely floating point data
+function loadFloatArrayX(file, floatType = 'float32') 
+{
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+        
+    reader.onload = (event) => {
+      try {
+        const buffer     = event.target.result;
+        const dataView   = new DataView(buffer);
+        const floatArray = [];
+                
+        const bytesPerFloat = floatType === 'float32' ? 4 : 8;
+        const readMethod = floatType === 'float32' ? 'getFloat32' : 'getFloat64';
+        const numFloats = Math.floor(buffer.byteLength / bytesPerFloat);
+                
+        for (let i=0; i<numFloats; i++) {
+          const offset = i * bytesPerFloat;
+          const value  = dataView[readMethod](offset, true);
+          floatArray.push(value);
+        }
+                
+        resolve(floatArray);
+    } catch (error) {
+      reject(new Error(`Failed to parse binary float data: ${error.message}`));
+    }
+  };
+        
+    reader.onerror = (error) => reject(error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function array_reshape(a,r,c) 
+{
+  if (a.length !== r*c) {
+    throw new Error('length must match r*c');
+  }
+
+  return Array.from({ length: r }, (_, i) => 
+    a.slice(i*c, (i+1)*c)
+  );
+}
+
+
+function loadFloatFile(filename) {
+  return fetch(filename)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`load error: ${response.status}`);
+      }
+      return response.arrayBuffer();
+    })
+    .then(buffer => new Float32Array(buffer));
+}
+
+const hm_temperature = [
+  ['0.0',            'rgb(  0,  0,255)'], // tight around max bias underrepresented
+  ['0.499950000000', 'rgb(240,240,255)'], // <--- quick bump toward blue
+  ['0.500000000000', 'rgb(255,255,255)'], // tight around exact -> white
+  ['0.500050000000', 'rgb(255,240,240)'], // <--- quick bump toward red
+  ['1.0',            'rgb(255,  0,  0)']  // tight around max bias overrepresented
+];
+
+//const hm_colorscale = 'RdBu';
+//const hm_colorscale = 'Jet';
+//const hm_colorscale = 'Picnic';
+//const hm_colorscale = 'Hot';
+const hm_colorscale = hm_temperature;
+const hm_size = 500;
+
+
+const hm_layout = {
+  width:  hm_size,
+  height: hm_size,
+  autosize: false,
+  
+  margin: {l:50,r:50,t:50,b:50},
+
+  xaxis: {
+    tick0:0, dtick:8,
+    scaleanchor: "y",
+    constrain: "domain",
+    constraintoward: "center",
+	showticklabels: false, ticks: ''
+  },
+  
+  yaxis: {
+    tick0:0, dtick:8, autorange: 'reversed',
+    constrain: "domain",
+    constraintoward: "center",
+	showticklabels: false, ticks: ''
+  }
+};
+
+const hm_extra = {
+  scrollZoom:     false,
+  dragMode:       false,
+  displayModeBar: false 
+};
+
+function hm_load_64(name,div,dim=600,showScale=false)
+{
+  loadFloatFile(name)
+    .then(floatArray => {
+  	  floatArray = array_reshape(floatArray,64,64);
+
+      let layout   = structuredClone(hm_layout);
+	  layout.width = layout.height = dim;
+
+  	  const data = [{
+        z: floatArray,
+        type: 'heatmap',
+        colorscale: hm_colorscale,
+        zmin: -1.000,
+        zmax:  1.000,
+        zmid:  0,
+		showscale: showScale,
+		colorbar: { len: 0.90 },
+  	    hovertemplate: '(%{x},%{y}) = %{z:g}<extra></extra>'
+      }];
+
+    Plotly.newPlot(div, data, layout, hm_extra); 
+  })
+  .catch(error => console.error('Error loading file:', error));
+}
+
+
+hm_load_64('v0.0.1_0.dat', 'channel_0',64*7);
+hm_load_64('v0.0.1_1.dat', 'channel_1',64*7);
+hm_load_64('v0.0.1_2.dat', 'channel_2',64*7);
+hm_load_64('v0.0.1_3.dat', 'channel_3',64*7);
+
+hm_load_64('v0.0.1_0_i.dat', 'zchannel_0',64*7);
+hm_load_64('v0.0.1_1_i.dat', 'zchannel_1',64*7);
+hm_load_64('v0.0.1_2_i.dat', 'zchannel_2',64*7);
+hm_load_64('v0.0.1_3_i.dat', 'zchannel_3',64*7);
+
+</script>
