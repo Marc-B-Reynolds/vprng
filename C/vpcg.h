@@ -8,6 +8,10 @@
 // (xorshiro state update replaced with xorshift)
 // or like an XorWow with but a "Type I" XorShift instead of
 // multiple state word variant with a bit finalizer added.
+//
+// NOTE: many standard PCG implementations center around
+// discarding half the bits produced which should allow
+// a weaker finalizer. This doesn't follow that pattern.
 
 // TODO:
 // * deal with generator pos functions which will be whacked
