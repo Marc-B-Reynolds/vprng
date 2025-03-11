@@ -275,12 +275,17 @@ static inline u64x4_t vprng_splat_u64(uint64_t x)
 // core of the PRNGs defined here
 
 #if !defined(VPRNG_HIGHLANDER)
-typedef struct { u64x4_t state; u64x4_t inc; } vprng_t;
+typedef struct { u64x4_t state; u64x4_t inc;  } vprng_t;
 #else
 typedef struct { u64x4_t state; } vprng_t;
 #endif
 
-typedef struct { vprng_t base;  u64x4_t f2;  } cvprng_t;
+// allow more than single word F2 generators
+#if !defined(VPRNG_SOMETHING_OR_OTHER)
+#define VPRNG_STATE_WORDS 1
+#endif
+
+typedef struct { vprng_t base;  u64x4_t f2[VPRNG_STATE_WORDS]; } cvprng_t;
 
 
 // 32x8 integer product
@@ -359,9 +364,12 @@ static inline u32x8_t vprng_mix(vprng_t* prng, u64x4_t x);
 
 // the default cvprng uses the same finalizer as vprng
 #if !defined(VPRNG_CMIX_EXTERNAL)
-static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t x) { return vprng_mix(&prng->base, x); }
+static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t s0, u64x4_t s1)
+{
+  return vprng_mix(&prng->base, s0+s1);
+}
 #else
-static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t x);
+static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t s0, u64x4_t s1);
 #endif
 
 // compile time select the state update
@@ -434,13 +442,13 @@ static inline u32x8_t vprng_u32x8(vprng_t* prng)
 static inline u32x8_t cvprng_u32x8(cvprng_t* prng)
 {
   u64x4_t s0 = prng->base.state;
-  u64x4_t s1 = prng->f2;
-  u32x8_t r  = cvprng_mix(prng, s0+s1);
+  u64x4_t s1 = prng->f2[0];
+  u32x8_t r  = cvprng_mix(prng, s0,s1);
 
   vprng_result_barrier(r,s1);
 
   prng->base.state = vprng_state_up (s0, cvprng_inc(prng));
-  prng->f2         = cvprng_state_up(s1);
+  prng->f2[0]      = cvprng_state_up(s1);
   
   return r;
 }
@@ -574,7 +582,7 @@ void cvprng_init(cvprng_t* prng)
 			    UINT64_C(0x7f6efb9bf3fc45e1)}; // p3 = 2*2^62 + off + 541
 
   vprng_init(&(prng->base));
-  prng->f2 = k;  
+  prng->f2[0] = k;  
 }
 
 // only used for testing
@@ -605,7 +613,7 @@ void cvprng_init(cvprng_t* prng)
 
   
   vprng_init(&(prng->base));
-  prng->f2 = k;  
+  prng->f2[0] = k;  
 }
 
 // only used for testing
