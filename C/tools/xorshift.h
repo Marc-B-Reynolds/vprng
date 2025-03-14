@@ -1,5 +1,28 @@
 #pragma once
 
+// make a dense matrix from function 'f'
+uint64_t func_to_mat(uint64_t m[static 64], uint64_t (*f)(uint64_t))
+{
+  uint64_t t = f(0);
+  uint64_t p = 1;
+
+  for(uint32_t i=0; i<64; i++) { m[i]=0; }
+
+  do {
+    uint64_t r = f(p) ^ t;
+    uint64_t b = 1;
+
+    for(int j=0; j<64; j++) {
+      m[j]  ^= ((r & b) != 0) ? p : 0;
+      b    <<= 1;
+    }
+    
+    p <<= 1;
+  } while(p);
+
+  return t;
+}
+
 // 2-term
 static inline uint64_t xorshift2(uint64_t s) { s ^= s << 7; s ^= s >> 9; return s; }
 
