@@ -52,6 +52,7 @@ PractRand options:
   --lo [n]        inital number of bytes to test  (-tlmin)
   --hi [n]        maximum number of bytes to test (-tlmax)
   --seed [n]      -seed
+  --fold          -tf 2
 EOF
   exit
 }
@@ -90,6 +91,7 @@ SEED=1
 MAKEDATA="makedata"
 FPREFIX="practrand"
 COMBINED=""
+FOLDED=""
 
 parse_params() {
   # default values of variables set from params
@@ -108,6 +110,8 @@ parse_params() {
       ;;
     --cvprng) MOPT="${MOPT} --cvprng"
 	      COMBINED="c" ;;
+    --fold)   POPT="${POPT} -tf 2"
+	      FOLDED="f" ;;
     --hi) HI="${2-}"
 	  shift ;;
     --lo) LO="${2-}"
@@ -196,7 +200,9 @@ fi
 
 
 # run the test(s)
-FILEBASE="data/${FPREFIX}_${COMBINED}${PRNG}_${TYPE}"
+
+# build up the output filename
+FILEBASE="data/${FPREFIX}_${COMBINED}${PRNG}_${TYPE}${FOLDED}"
 
 run_tests () {
 
@@ -208,11 +214,8 @@ for arg in "${args[@]}"; do
     msg ""
 
     # also place it at the top of the output file
-    echo "./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED}" >> $FILE
+    echo "./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED}" > $FILE
 
-    # and the --dryrun option output as well (info is in stderr. stdout feeds RNG_test et al.)
-    ./${MAKEDATA} ${MOPT} --test-id=${arg} --dryrun 2> $FILE 
-    
     # run the actual test
     #   sending any stderr from 'makedata' to FILE
     #   the "|| true" is needed because there'll be a SIGPIPE (exit code 141) when 'RNG_test' closes the stream
