@@ -41,10 +41,15 @@ void test_name(char* str)
 uint32_t test_fail(void) { printf(FAIL "FAIL!" ENDC "\n");     return 1; }
 uint32_t test_pass(void) { printf(OKGREEN "passed" ENDC "\n"); return 0; }
 
-
 uint32_t test_u64_eq(uint64_t a, uint64_t b)
 {
   if (a==b) return test_pass();
+  return test_fail();
+}
+
+uint32_t test_zero(uint64_t a)
+{
+  if (a==0) return test_pass();
   return test_fail();
 }
 
@@ -124,6 +129,26 @@ uint32_t check_basic(void)
 
   test_name("base weyl");
   errors += test_u64_eq(vprng_internal_inc_k*vprng_internal_inc_i,1);
+
+  // checking that the hobbled XorShift init values
+  // are the next three after '1'.
+  test_name("hobbled f2 init");
+  {
+    cvprng_t foo = {.f2={1,1}};
+    uint32_t t   = 0;
+    
+    cvprng_u64x4(&foo);
+    t += foo.f2[0][0] != cvprng_hobble_init_k[1];
+
+    cvprng_u64x4(&foo);
+    t += foo.f2[0][0] != cvprng_hobble_init_k[2];
+    
+    cvprng_u64x4(&foo);
+    t += foo.f2[0][0] != cvprng_hobble_init_k[3];
+    
+    errors += test_zero(t);
+  }
+  
 
   return errors;
 }
