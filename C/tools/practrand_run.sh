@@ -43,7 +43,7 @@ script options:
 
 makedata options:
   --alt name      uses makedata_name where name is variant defined
-                  by "name.h". 
+                  by "name.h". Attempts to compile if not found.
   --cvprng        cvprng instead of vprng
   --channel [n]   only channel 'n' (disabled)
   --32            32-bit instead of 64-bit channels (disabled)
@@ -163,7 +163,12 @@ if [[ -v ALT ]]; then
   	     CC=$(command -v gcc || command -v clang || echo cc)
 	   fi
 
-	   ${CC} -DVPRNG_INCLUDE=\"${ALT}.h\" -g3 -O3 -I..  -march=native makedata.c -o ${MAKEDATA} || status=$?
+	   # make some default CFLAGS if not defined
+	   if [ -z "${CFLAGS+x}" ]; then
+  	     CFLAGS=-O3 -march=native
+	   fi
+
+	   ${CC} -DVPRNG_INCLUDE=\"${ALT}.h\" -g3 -I.. -I. ${CFLAGS} makedata.c -o ${MAKEDATA} || status=$?
 	 else
            die "${RED}error${NOFORMAT}: make failed"
 	 fi
@@ -204,13 +209,14 @@ fi
 # build up the output filename
 FILEBASE="data/${FPREFIX}_${COMBINED}${PRNG}_${TYPE}${FOLDED}"
 
+# standard version where each parameter is a test-id
 run_tests () {
 
 for arg in "${args[@]}"; do
     FILE="${FILEBASE}_${arg}.txt"
 
     # show the command to be executed in the terminal
-    msg "${GREEN}./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED} >> ${FILE} ${NOFORMAT}"  # temp hack
+    msg "${GREEN}./${MAKEDATA} ${MOPT} --test-id=${arg} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED} ${NOFORMAT}"  # temp hack
     msg ""
 
     # also place it at the top of the output file
@@ -220,6 +226,29 @@ for arg in "${args[@]}"; do
     #   sending any stderr from 'makedata' to FILE
     #   the "|| true" is needed because there'll be a SIGPIPE (exit code 141) when 'RNG_test' closes the stream
     ./${MAKEDATA} ${MOPT} --test-id=${arg} 2> >(tee -a $FILE >&2) | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${SEED} | tee -a $FILE || true
+
+    msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
+done
+}
+
+# alternate standard version where each parameter is a seed value to RNG_test. This is for testing: HIGHLANDER (single generator),
+# hobbled values, etc. (not hooked up yet)
+run_tests_alt () {
+
+for arg in "${args[@]}"; do
+    FILE="${FILEBASE}_${arg}.txt"
+
+    # show the command to be executed in the terminal
+    msg "${GREEN}./${MAKEDATA} ${MOPT} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${arg} ${NOFORMAT}"  # temp hack
+    msg ""
+
+    # also place it at the top of the output file
+    echo "./${MAKEDATA} ${MOPT} | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${arg}" > $FILE
+
+    # run the actual test
+    #   sending any stderr from 'makedata' to FILE
+    #   the "|| true" is needed because there'll be a SIGPIPE (exit code 141) when 'RNG_test' closes the stream
+    ./${MAKEDATA} ${MOPT} 2> >(tee -a $FILE >&2) | RNG_test stdin64 ${POPT} -tlmin $LO -tlmax $HI -seed ${arg} | tee -a $FILE || true
 
     msg "${GREEN}----------------------------------------------------------------------------${NOFORMAT}"
 done
