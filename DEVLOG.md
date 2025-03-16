@@ -16,7 +16,14 @@ improvement for the original (but a bit slower)
      |bias| = 0.00085375 ± 0.00079878 : max = 0.017200
 	 
 * Initial AES version (again) has hacked mixer. Need to think about
-bit propagation, periods of base sequence and make a measuring tool.
+  bit propagation, periods of base sequence and make a measuring tool.
+  It's performing quite well as is and minimal testing seems to
+  indicate it's pretty good as is.
+
+* Changed the global constant generator. Need to revisit that
+  as well. Doesn't matter for stronger hash version but could
+  help the weaker ones quite a bit. A MLCG constant instead
+  instead of trying to
 
 -----------------------------------------------
 <small>0.0.1</small>
