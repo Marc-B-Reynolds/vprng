@@ -5,6 +5,7 @@ Bullet pointy stuff
 <small>0.0.2</small>
 
 * greatly improved the default bit-mixer
+* added support for multiple word $\mathbb{F}^2$ generators (second state)
 * added variants:
   * 128-bit AES variant `vprng_aes.h`
   * 32-bit PCG `vpcg32.h`
