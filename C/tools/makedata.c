@@ -122,10 +122,10 @@ void wrap_cvprng_init(cvprng_t* prng)
   cvprng_init(prng);
 
   if (vi_hobble) {
-    prng->inc = (u64x4_t){1,
-			  0x8000000000000001,
-			  0xc000000000000001,
-			  0xe000000000000001};
+    prng->base.inc = (u64x4_t){1,
+			       0x8000000000000001,
+			       0xc000000000000001,
+			       0xe000000000000001};
   };
 }
 
