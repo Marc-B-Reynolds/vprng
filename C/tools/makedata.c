@@ -35,6 +35,7 @@
 // true if only dumping informtion about what the run would do
 bool dry_run = false;
 bool cvprng_hobble_state = false;
+bool vi_hobble = false;
 
 uint64_t global_id = 1;
 uint64_t test_id   = UINT64_C(-1);
@@ -57,7 +58,6 @@ void test_banner(char* str, vprng_t* prng)
 
   u64x4_t inc = vprng_inc(prng);
   
-  // temp hack
   fprintf(stderr,
 	  "{%016" PRIx64
 	  ",%016" PRIx64
@@ -108,11 +108,25 @@ void print_warning(char* msg)
 void wrap_vprng_init(vprng_t* prng)
 {
   vprng_init(prng);
+
+  if (vi_hobble) {
+    prng->inc = (u64x4_t){1,
+			  0x8000000000000001,
+			  0xc000000000000001,
+			  0xe000000000000001};
+  };
 }
 
 void wrap_cvprng_init(cvprng_t* prng)
 {
   cvprng_init(prng);
+
+  if (vi_hobble) {
+    prng->inc = (u64x4_t){1,
+			  0x8000000000000001,
+			  0xc000000000000001,
+			  0xe000000000000001};
+  };
 }
 
 
@@ -286,6 +300,7 @@ void help_options(char* name)
 	 "  --32         32-bit (default: 64-bit)\n"
 	 "  --id=N       vprng_global_id_set(N)\n"
 	 "  --test-id=N  see README.md\n"
+	 "  --vihobble   worst possible first state constants README.md\n"
 	 "  --cvprng     2 state version\n"
 	 "  --channel=N  only channel 'N' output\n"
 	 "  --blocks=N   produce N blocks of %u bytes\n"
@@ -310,6 +325,7 @@ int main(int argc, char** argv)
     {"32",         no_argument,       0, 'w'},
     {"id",         required_argument, 0, 'g'},
     {"test-id",    required_argument, 0, 't'},
+    {"vihobble",   required_argument, 0, 'h'},
     {"cvprng",     no_argument,       0, 'x'},
     {"channel",    required_argument, 0, 'c'},
     {"blocks",     required_argument, 0, 'b'},
@@ -355,6 +371,11 @@ int main(int argc, char** argv)
       case 't': {
 	// find the n^th (zero based) acceptiable set of additive
 	// constants.
+	if (vi_hobble) {
+	  print_error("test-id and vihobble are mutually exclusive");
+	  exit(-1);
+	}
+	
 	uint64_t tid = parse_u64(optarg);
 	  if (tid < 256) {
 	    vprng_t t;
