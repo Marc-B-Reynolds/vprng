@@ -14,6 +14,12 @@ static inline uint32_t pop_32(uint32_t x) { return (uint32_t)__builtin_popcount(
 static inline uint32_t bit_run_count_32(uint32_t x) { return pop_32(x & (x^(x>>1))); }
 static inline uint32_t bit_run_count_64(uint64_t x) { return pop_64(x & (x^(x>>1))); }
 
+static inline void printb(uint64_t v, uint32_t b)
+{
+  uint64_t m = UINT64_C(1)<<(b-1);
+  do { printf("%c", (v & m)!=0 ? '1':'.'); m >>= 1; } while (m != 0);
+}
+
 
 // Welford's method for streaming mean/variance/stdev
 typedef struct { double n,m,s,min,max; } seq_stats_t;
