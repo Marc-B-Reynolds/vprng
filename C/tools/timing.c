@@ -163,6 +163,11 @@ __attribute__((noinline)) void cvprng_fill_f32(cvprng_t* prng)
   for(uint32_t i=0; i<BUFFER_LEN; i++) { d[i] = cvprng_f32x8(prng); }
 }
 
+#if !defined(VPRNG_INCLUDE)
+
+#endif
+
+
 typedef struct {
   char* name;
   void (*f)(void*);
@@ -174,8 +179,6 @@ cvprng_t cvprng;
 
 func_entry_t func_table[] =
   {
-  //{.name = "nop",            .f=(void*)nop,             .state=0},
-    {.name = "memset",         .f=(void*)fill,            .state=0},
     {.name = "run vprng  u32", .f=(void*)vprng_run_u32,   .state=&vprng},
     {.name = "mem vprng  u32", .f=(void*)vprng_fill_u32,  .state=&vprng},
     {.name = "run vprng  f32", .f=(void*)vprng_run_f32,   .state=&vprng},
@@ -183,6 +186,12 @@ func_entry_t func_table[] =
     {.name = "run cvprng u32", .f=(void*)cvprng_run_u32,  .state=&cvprng},
     {.name = "mem cvprng u32", .f=(void*)cvprng_fill_u32, .state=&cvprng},
     {.name = "mem cvprng f32", .f=(void*)cvprng_fill_f32, .state=&cvprng},
+
+    // add some off-the-shelf to the build for the "default"
+#if !defined(VPRNG_INCLUDE)
+  //{.name = "nop",            .f=(void*)nop,             .state=0},
+    {.name = "memset",         .f=(void*)fill,            .state=0},
+#endif    
   };
 
 
