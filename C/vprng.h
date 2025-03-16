@@ -153,6 +153,7 @@
   │ u7 │ u6 │ u5 │ u4 │ u3 │ u2 │ u1 │ u0 │ u_i
   └────┴────┴────┴────┴────┴────┴────┴────┘
 
+// DATED & need a better one
      // mix_i
      t_i ^= t_i >> 16
      u_i *= m0
@@ -382,10 +383,43 @@ static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i)
 static inline u64x4_t vprng_state_up(u64x4_t s, u64x4_t i);
 #endif
 
+#if !defined(VPRNG_STATE2_EXTERNAL)
 
 // compile time select the second state update
-#if !defined(VPRNG_STATE2_EXTERNAL)
+// 
+// * cvprng_init_k: inital state values. call x_i
+//   the xorshift sequence where:
+//     x_0 = 1 (define)
+//     x_i = xorshift(x_{i-1})
+//   then the inital values are {p0,p1,p2,p3} where the p's
+//   are approximately maximum distance apart (2^62). Start with
+//     off = RoundToOdd[Floor[2^64 Sqrt[2]]] = 0x6a09e667f3bcc908
+//   just not to start at 0 and then each is further offset by
+//   a smallish prime which is intended to lower the chances
+//   that all four are in 'zeroland' at the same time. Zeroland
+//   doesn't look to be a problem however (see doc)
+//
+// * cvprng_hobble_init_k: broken choices for statistical
+//   testing: {x_0,x_1,x_2,x_3}
+
 #if !defined(VPRNG_CVPRNG_3TERM)
+
+// 2 term xorshift
+
+static const u64x4_t cvprng_init_k =
+{
+  UINT64_C(0x55a07167039ee1bb),  // p0 = 0*2^62 + off
+  UINT64_C(0x2078e461244b6d4b),  // p1 = 1*2^62 + off + 31
+  UINT64_C(0xfb187856a5f450ff),  // p2 = 2*2^62 + off + 257
+  UINT64_C(0x7f6efb9bf3fc45e1)   // p3 = 2*2^62 + off + 541
+};
+
+static const u64x4_t cvprng_hobble_init_k =
+{
+  UINT64_C(0x1), UINT64_C(0x81), UINT64_C(0x4021), UINT64_C(0x204089)
+};
+
+
 static inline u64x4_t cvprng_state_up(u64x4_t s)
 {
   s ^= s << 7;
@@ -393,12 +427,30 @@ static inline u64x4_t cvprng_state_up(u64x4_t s)
 
   return s;
 }
+
 #else
+
+static const u64x4_t cvprng_init_k =
+{
+  UINT64_C(0xc5da252a1302a152), // same sideline as 2-term 
+  UINT64_C(0x7a888ce4d7ff17cc), // above
+  UINT64_C(0xf3e14609aa2f25ea),
+  UINT64_C(0x1af45fbbbc2fa67f)
+};
+
+static const u64x4_t cvprng_hobble_init_k =
+{
+  UINT64_C(0x1),
+  UINT64_C(0x81200000409),
+  UINT64_C(0x4800000024100049),
+  UINT64_C(0xc1220c9344d90601)
+};
+
 static inline u64x4_t cvprng_state_up(u64x4_t s)
 {
-  s ^= s << 10;
-  s ^= s >>  7;
-  s ^= s << 33;
+  s ^= s << 27;
+  s ^= s >> 15;
+  s ^= s <<  5;
 
   return s;
 }
@@ -490,6 +542,7 @@ static inline uint32_t vprng_pop(uint64_t x) { return (uint32_t)__builtin_popcou
 //   magic    = frac(phi) = 1/phi = (Sqrt[5]-1)/2
 //   constant = RoundToOdd[2^64*magic]
 // and its mod inverse:
+// (humm...I think I actually like the post version better. reconsider & revisit)
 static const uint64_t vprng_internal_inc_k  = UINT64_C(0x9e3779b97f4a7c15);
 static const uint64_t vprng_internal_inc_i  = UINT64_C(0xf1de83e19937733d);
 
@@ -559,75 +612,12 @@ void vprng_init(vprng_t* prng)
 extern void vprng_init(vprng_t* prng);
 #endif
 
-#ifndef VPRNG_CVPRNG_3TERM
-
-// Brent's 2 term XorShift (default)
-void cvprng_init(cvprng_t* prng)
-{
-  // inital state values. call x_i the xorshift sequence where:
-  //   x_0 = 1 (define)
-  //   x_i = xorshift(x_{i-1})
-  // then the inital values are {p0,p1,p2,p3} where the p's
-  // are approximately maximum distance apart (2^62). Start with
-  //   off = RoundToOdd[Floor[2^64 Sqrt[2]]] = 0x6a09e667f3bcc908
-  // just not to start at 0 and then each is further offset by
-  // a smallish prime which is intended to lower the chances
-  // that all four are in 'zeroland' at the same time. Zeroland
-  // doesn't look to be a problem however (see doc)
-
-  // {x_p0,x_p1,x_p2,x_p3}
-  static const u64x4_t k = {UINT64_C(0x55a07167039ee1bb),  // p0 = 0*2^62 + off
-			    UINT64_C(0x2078e461244b6d4b),  // p1 = 1*2^62 + off + 31
-			    UINT64_C(0xfb187856a5f450ff),  // p2 = 2*2^62 + off + 257
-			    UINT64_C(0x7f6efb9bf3fc45e1)}; // p3 = 2*2^62 + off + 541
-
-  vprng_init(&(prng->base));
-  prng->f2[0] = k;  
-}
-
-// only used for testing
-// broken choices for statistical testing: {x_0,x_1,x_2,x_3}
-// for higher confidence levels if passes tests
-static const u64x4_t cvprng_hobble_init_k =
-{
-  UINT64_C(0x1),
-  UINT64_C(0x81),
-  UINT64_C(0x4021),
-  UINT64_C(0x204089)
-};
-
-#else
-
-// Optional three term XorShift: (I+L^b)(I+R^b)(I+L^a)
-// This is from Francois Panneton's Thesis. Choosen
-// from the ones with the top measures at uniformity.
 
 void cvprng_init(cvprng_t* prng)
 {
-  // otherwise comments follow that of the 2 term
-
-  static const u64x4_t k = {UINT64_C(0xc5da252a1302a152),
-			    UINT64_C(0x7a888ce4d7ff17cc),
-			    UINT64_C(0xf3e14609aa2f25ea),
-			    UINT64_C(0x1af45fbbbc2fa67f)};
-
-  
   vprng_init(&(prng->base));
-  prng->f2[0] = k;  
+  prng->f2[0] = cvprng_init_k;  
 }
-
-// only used for testing
-// broken choices for statistical testing: {x_0,x_1,x_2,x_3}
-// for higher confidence levels if passes tests
-static const u64x4_t cvprng_hobble_init_k =
-{
-  UINT64_C(0x1),
-  UINT64_C(0x81200000409),
-  UINT64_C(0x4800000024100049),
-  UINT64_C(0xc1220c9344d90601)
-};
-#endif
-
 
 
 // mod-inverse of 64-bit integer
