@@ -14,13 +14,6 @@
 #include "vprng.h"
 #include "common.h"
 
-void printb(uint64_t v, uint32_t b)
-{
-  uint64_t m = UINT64_C(1)<<(b-1);
-  do { printf("%c", (v & m)!=0 ? '1':'.'); m >>= 1; } while (m != 0);
-}
-
-
 typedef struct {
   uint32_t oi[64][64];  // per bit position counts
   uint32_t pop[65];     // population count
@@ -213,7 +206,8 @@ static void spew(void)
 }
 
 
-
+// this was the initally checked in finalizer. it
+// was ad-hoc tossed together and very not great.
 static inline u32x8_t og_mix(u64x4_t x)
 {
   static const u32x8_t m0 =
