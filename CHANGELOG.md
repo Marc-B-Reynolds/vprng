@@ -6,6 +6,7 @@ Bullet pointy stuff
 
 * greatly improved the default bit-mixer
 * added support for multiple word $\mathbb{F}^2$ generators (second state)
+  but no examples
 * added variants:
   * 128-bit AES variant `vprng_aes.h`
   * 32-bit PCG `vpcg32.h`
