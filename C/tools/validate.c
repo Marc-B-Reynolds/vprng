@@ -140,8 +140,6 @@ void zeroland_info(void)
     zeroland_inspect(xorshift_table[id].name, xorshift_table[id].f);
 }
 
-
-
 // count the number of 32-bit accepted candidates (vpcg32)
 void vpcg32_count(void)
 {
@@ -176,12 +174,27 @@ void vpcg32_count(void)
   } while(counter < 0x80000000);
 
   printf("vpcg32: %u (%08x) accepted additive constants\n", accepted,accepted);
-  
 }
+
+void dump_additive_k(void)
+{
+  vprng_global_id_set(0);
+
+  for(uint32_t i=0; i<100; i++) {
+    uint64_t k  = vprng_additive_next();
+    uint32_t id = (uint32_t)(vprng_global_id_get()-1);
+    
+    printf("|%04x|%04x|`%016" PRIx64 "`|%2u|",i,id,k,pop_64(k));
+    printb(k,64);
+    printf("|\n");
+  }
+}
+
 
 int main(void)
 {
   // just hack whatever thing I'm wanted to validate
+  dump_additive_k();
 
   {
     uint64_t u = 1;
@@ -189,8 +202,8 @@ int main(void)
     uint64_t s = 0;
     uint64_t min = 0xfffffffffff;
     
-      seq_stats_t stats;
-      seq_stats_init(&stats);
+    seq_stats_t stats;
+    seq_stats_init(&stats);
     do {
       u = weyl_phi(u);
       c++;
