@@ -32,7 +32,7 @@ from 2MB to 512GB.
   ./practrand_run.sh 0 1 2 3 4 5 6 7 8 9
 
 The composed command is echoed to the terminal. If PractRand hits
-a clear fail then that run will be stop but remaining runs will
+a clear fail then that run will be stopped but remaining runs will
 proceed. Each run is written out to the file. Example: 0 is
 written to:
 
@@ -44,6 +44,9 @@ script options:
 makedata options:
   --alt name      uses makedata_name where name is variant defined
                   by "name.h". Attempts to compile if not found.
+                  First trying "make makedata_name" and if that
+                  doesn't work then directly issues a compile
+                  command.
   --cvprng        cvprng instead of vprng
   --channel [n]   only channel 'n' (disabled)
   --32            32-bit instead of 64-bit channels (disabled)
@@ -51,7 +54,7 @@ makedata options:
 PractRand options:
   --lo [n]        inital number of bytes to test  (-tlmin)
   --hi [n]        maximum number of bytes to test (-tlmax)
-  --seed [n]      -seed
+  --seed [n]      -seed n
   --fold          -tf 2
 EOF
   exit
@@ -165,7 +168,7 @@ if [[ -v ALT ]]; then
 
 	   # make some default CFLAGS if not defined
 	   if [ -z "${CFLAGS+x}" ]; then
-  	     CFLAGS=-O3 -march=native
+  	     CFLAGS="-O3 -march=native"
 	   fi
 
 	   ${CC} -DVPRNG_INCLUDE=\"${ALT}.h\" -g3 -I.. -I. ${CFLAGS} makedata.c -o ${MAKEDATA} || status=$?
