@@ -1,3 +1,4 @@
+// -*- coding: utf-8 -*-
 
 #include <stdint.h>
 #include <stdbool.h>

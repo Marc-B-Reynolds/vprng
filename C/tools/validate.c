@@ -1,4 +1,4 @@
-
+// -*- coding: utf-8 -*-
 // garbage bin of checking claims, etc.
 
 #include <stdint.h>
@@ -124,7 +124,7 @@ void zeroland_inspect(char* name, uint64_t (*f)(uint64_t))
       u0 = pop_next_64(u0);
     } while(u0 != UINT64_C(-1));
     
-    printf("%5.3f ± %5.3f|",
+    printf("%5.3f Â± %5.3f|",
 	   seq_stats_mean(&stats),
 	   seq_stats_stddev(&stats));
   }
@@ -218,7 +218,7 @@ int main(void)
     } while(s < 0xffff);
 
     printf("\n\n");
-        printf("%5.3f ± %5.3f| min = %lu",
+        printf("%5.3f Â± %5.3f| min = %lu",
 	   seq_stats_mean(&stats),
 	       seq_stats_stddev(&stats),
 	       min);

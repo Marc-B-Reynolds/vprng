@@ -1,3 +1,5 @@
+// -*- coding: utf-8 -*-
+
 // major hack to create the initial state values for the
 // XorShift portion
 
@@ -137,8 +139,6 @@ const uint64_t offsets[] = {P0,P1,P2,P3};
 
 xorshift_def_t* def;
 
-
-
 uint64_t build_m(uint64_t x)
 {
   return def->m(x,def->k[0],def->k[1],def->k[2]);
@@ -215,9 +215,43 @@ void build_3_term(void)
   }
 }
 
+void dump_powers(void)
+{
+  uint64_t d[64];
+  mzd_t*   m = m4ri_alloc_64();
+  mzd_t*   p = m4ri_alloc_64();
+  uint64_t r = 1;
+
+  def = xorshift_def;
+  
+  // create the matrix (M)
+  func_to_mat(d, build_m);
+  to_m4ri(m,d);
+
+  for(uint32_t i=0; i<65; i++) {
+    mzd_copy(p,m);
+    m4ri_pow(p,1ull<<i);
+    
+    // result is the first column since
+    // we're transforming '1'.
+    r = get_col_m4ri(p,0);
+    printf("0x%016" PRIx64 ", // %2u\n", r,i);
+  }
+
+  mzd_copy(p,m);
+  m4ri_pow(p,64-1);
+  
+  // result is the first column since
+  // we're transforming '1'.
+  r = get_col_m4ri(p,0);
+  printf("---0x%016" PRIx64 ", // \n", r);
+}
+
+
 
 int main(void)
 {
+  dump_powers();
   build_3_term();
   
   return 0;

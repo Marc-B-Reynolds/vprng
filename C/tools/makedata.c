@@ -1,3 +1,4 @@
+// -*- coding: utf-8 -*-
 // for dump PRNG output to either a file or stdout for statistical testing or regression testing
 
 #include <stdio.h>
