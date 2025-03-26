@@ -2,8 +2,13 @@
 // Public Domain under http://unlicense.org, see link for details.
 
 // WIP:
-// * single state consistently getting sus values at 2GB and failing on 8 GB with -tf 2
+// * 32 bits of state is just too small to perform well at modern testing so the
+//   single state generator is going to be poor at statistical randomness no matter
+//   what we do.
+//   * single state consistently getting sus values at 2GB and failing on 8 GB with -tf 2
+//   * reducing to 1 32-bit channel then fails start happening at 1GB (note 1/8)
 // * combined generator with 2-term has passed one -tf 2 up to 512GB (need to run full)
+//   * combined generator needs a proper mixer.
 
 /*
   ./makedata_vpcg32 --test-id 1 | RNG_test stdin64 -tf 2 -tlmin 2GB -tlmax 512GB -seed 1
@@ -40,9 +45,10 @@ length= 8 gigabytes (2^33 bytes), time= 173 seconds
 #pragma once
 
 #define VPRNG_NAME "vpcg32"
+#define VPRNG_ADDITIVE_CONSTANT_EXTERN
 #define VPRNG_STATE_EXTERNAL
 #define VPRNG_MIX_EXTERNAL
-#define VPRNG_ADDITIVE_CONSTANT_EXTERN
+//#define VPRNG_CMIX_EXTERNAL  // should be disabled ATM (just for spot checking)
 
 #include "vprng.h"
 
@@ -85,12 +91,23 @@ static inline u32x8_t vprng_mix(vprng_unused vprng_t* prng, u64x4_t x)
   return u;
 }
 
-// TODO: add a finalizer for the combined generator
-#if 0
-static inline u32x8_t cvprng_mix(u64x4_t x)
+#if defined(VPRNG_CMIX_EXTERNAL)
+
+// add a real mixer for combine that operates on 64-bit chucks.
+// this is just a testing hack to see how far it gets with
+// just being cheap.
+
+static inline u32x8_t cvprng_mix(vprng_unused cvprng_t* prng, u64x4_t s0, u64x4_t s1)
 {
+  // LOL! No.
+  s0 ^= s0 >> 16;
+  s0 += s1;
+  
+  return s0;
 }
+
 #endif
+
 
 //****************************************************************************
 // 32-bit PCG requires a customized additive constant method and is structured
@@ -107,9 +124,6 @@ static inline u32x8_t cvprng_mix(u64x4_t x)
 
 static const uint32_t vpcg_internal_inc_k  = UINT32_C(0x9e3779b9);
 static const uint32_t vpcg_internal_inc_i  = UINT32_C(0x144cbc89);
-static const uint32_t vpcg_internal_inc_t  = vpcg_internal_inc_k*vpcg_internal_inc_i;
-
-//static_assert(vpcg_internal_inc_t == 1, "not modinverses");
 
 static _Atomic uint32_t vpcg_internal_inc_id = 1;
 
@@ -120,7 +134,8 @@ void     vprng_global_id_set(uint64_t id) { atomic_store(&vpcg_internal_inc_id, 
 uint64_t vprng_global_id_get(void)        { return (uint64_t)atomic_load(&vpcg_internal_inc_id); }
 
 // returns an additive constant for the state update.
-// this produces 4138344935 (~2^31.9464) accepted constants.
+// * produces 2069172468 accepted values w/o top 2 bit rejection.
+// * produces 1569501719 accepted values with
 static uint32_t vpcg_additive_next(void)
 {
   uint32_t b;
@@ -132,10 +147,16 @@ static uint32_t vpcg_additive_next(void)
     b  = (b<<1)|1;
     b *= vpcg_internal_inc_k;
 
+#if 0
+    // top two bit rejection. if both are zero then it's a
+    // bad candidate as a LDS in isolation. But not doing
+    // a Weyl sequence so I don't think this is useful
+    if ((b >> (32-2))==0) continue;
+#endif    
+
     uint32_t pop = vpcg_pop(b);
     uint32_t t   = pop - (16-4);
 
-    // TODO: reduce window? probably
     if (t <= 2*8) {
       uint32_t str = vpcg_pop(b & (b ^ (b >> 1)));
       if (str >= (pop >> 2)) return b;
@@ -145,9 +166,11 @@ static uint32_t vpcg_additive_next(void)
 
 void vprng_init(vprng_t* prng)
 {
-#if !defined(VPRNG_HIGHLANDER)  
-  uint32_t i = vpcg_additive_next();
-  u32x8_t  v = {i,i,i,i,i,i,i,i};
+#if !defined(VPRNG_HIGHLANDER)
+  u32x8_t v;
+  
+  for(uint32_t i=0; i<8; i++)
+    v[i] = vpcg_additive_next();
   
   prng->inc = vprng_cast_u64(v);
 #endif  
